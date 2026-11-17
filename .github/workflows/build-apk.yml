@@ -1,0 +1,46 @@
+# Builds the PWC QC APK on GitHub and publishes it as a Release (the app's update check reads the latest Release).
+name: Build PWC QC APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - name: Version
+        run: |
+          echo "VER=1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          echo "window.PWC_QC_BUILD = { version: \"1.0.${{ github.run_number }}\", repo: \"${{ github.repository }}\" };" > www/build.js
+      - name: Make the Android project
+        run: |
+          npm install
+          npx cap add android
+          npx cap sync android
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />#' $M
+          grep -q CAMERA $M
+          G=android/app/build.gradle
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VER\"/" $G
+      - name: Build
+        run: cd android && ./gradlew assembleRelease --no-daemon
+      - name: Sign
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/zipalign -f -p 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          $BT/apksigner sign --ks keystore/pwc-qc.jks --ks-pass pass:pwcqc-2026 --key-pass pass:pwcqc-2026 --ks-key-alias pwcqc --out PWC_QC.apk aligned.apk
+          $BT/apksigner verify PWC_QC.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VER }}
+          name: PWC QC ${{ env.VER }}
+          files: PWC_QC.apk
+          body: "Install on the tablets: open this page on the tablet, tap PWC_QC.apk, then Install. Tablets that already have the app get an Update prompt."
