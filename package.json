@@ -1,0 +1,12 @@
+{
+  "name": "pwc-qc-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWC QC tablet app (Android APK) - the same screens as the web link, packed with Capacitor",
+  "dependencies": {
+    "@capacitor/android": "6.2.3",
+    "@capacitor/app-launcher": "6.0.4",
+    "@capacitor/cli": "6.2.3",
+    "@capacitor/core": "6.2.3"
+  }
+}

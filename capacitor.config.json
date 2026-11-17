@@ -1,0 +1,7 @@
+{
+  "appId": "com.premierwoodworking.qc",
+  "appName": "PWC QC",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "plugins": { "CapacitorHttp": { "enabled": true } }
+}

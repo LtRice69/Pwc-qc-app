@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="build.js"></script><script>window.PWC_QC_CONFIG={mode:"app"};</script>
+</head><body>
+<title>PWC QC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Shop-floor tablet app: one column, big touch targets, plywood-brown accent, pass/fail/load as semantic colors.
+   Built as ONE self-contained page so the same file can be served by the Google script now and packed into an APK later. */
+:root{
+  --bg:#f3f1ee; --panel:#ffffff; --ink:#1f2328; --mute:#66707a; --line:#d9d5cf; --soft:#ebe7e1;
+  --accent:#7a4a26; --accent-ink:#ffffff; --accent-soft:#f2e7dc;
+  --ok:#1f7a3f; --ok-soft:#e2f2e7; --bad:#b42318; --bad-soft:#fbe4e1; --warn:#9a5b00; --warn-soft:#fdf0d5; --info:#1d5f8c; --info-soft:#e1eef8;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#16191c; --panel:#1f2327; --ink:#e8e6e3; --mute:#9aa3ab; --line:#353b41; --soft:#2a2f34;
+  --accent:#c98a55; --accent-ink:#1a120b; --accent-soft:#3a2a1d;
+  --ok:#5cc983; --ok-soft:#173523; --bad:#ff8a7f; --bad-soft:#41201d; --warn:#f0b04a; --warn-soft:#3b2d12; --info:#7cbcea; --info-soft:#16303f; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#16191c; --panel:#1f2327; --ink:#e8e6e3; --mute:#9aa3ab; --line:#353b41; --soft:#2a2f34;
+  --accent:#c98a55; --accent-ink:#1a120b; --accent-soft:#3a2a1d;
+  --ok:#5cc983; --ok-soft:#173523; --bad:#ff8a7f; --bad-soft:#41201d; --warn:#f0b04a; --warn-soft:#3b2d12; --info:#7cbcea; --info-soft:#16303f; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px}
+body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:820px;margin:0 auto}
+/* tablet held sideways (Galaxy 1280x800): two columns, hardware in 2 columns, no change on phones */
+.cols{display:grid;gap:4px 22px;grid-template-columns:minmax(0,1fr)}
+.cols > div{min-width:0}
+@media (min-width:1000px){ .wrap{max-width:1240px} .cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .cols.side{grid-template-columns:minmax(0,1fr) 360px} .cols.side > .aside{grid-column:2;grid-row:1;position:sticky;top:76px;align-self:start} .cols.side > .main{grid-column:1;grid-row:1}
+  .hwgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:22px} }
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px))) 12px;padding:10px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hback{min-height:40px;padding:6px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 15px var(--sans);cursor:pointer}
+.htitle{font-weight:500;color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .phx{display:flex;height:100%;align-items:center;justify-content:center;font-size:11px;color:var(--mute)}
+.brand{font-weight:600;letter-spacing:.12em;font-size:15px}
+.brand small{letter-spacing:0;font-weight:500;color:var(--mute);margin-left:6px}
+.grow{flex:1;min-width:0}
+.tabs{display:flex;gap:4px;background:var(--soft);border-radius:8px;padding:3px}
+.tabs button{border:0;background:transparent;padding:7px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--mute);cursor:pointer;min-height:34px}
+.tabs button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+h1{font-size:20px;margin:6px 0 2px;text-wrap:balance}
+h2{font-size:16px;margin:16px 0 6px}
+.sub{color:var(--mute);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin:10px 0}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 14px var(--sans);cursor:pointer;text-decoration:none}
+.btn:focus-visible,.seg button:focus-visible,.li:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--info);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{width:100%;min-height:52px;font-size:16px;margin-top:14px}
+.btn.small{min-height:36px;padding:5px 10px;font-size:13px}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.back{border:0;background:transparent;font:500 15px var(--sans);color:var(--accent);cursor:pointer;min-height:40px;padding:4px 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-left:1px solid var(--line);background:var(--panel);color:var(--ink);min-width:58px;min-height:44px;padding:6px 12px;font:500 14px var(--sans);cursor:pointer}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.seg button.on.yes{background:var(--ok);color:#fff}
+.seg button.on.no{background:var(--bad);color:#fff}
+label.f{display:block;font-size:13px;color:var(--mute);margin:14px 0 5px;font-weight:500}
+input[type=text],input[type=search],textarea,select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:15px var(--sans);padding:9px 11px}
+textarea{min-height:70px;resize:vertical}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--mute);white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.info{background:var(--info-soft);color:var(--info)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
+.tag{font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.02em}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.li{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;min-height:56px;background:var(--panel);width:100%;text-align:left;border-left:0;border-right:0;border-top:0;font:inherit;color:inherit}
+.li:last-child{border-bottom:0}
+.li .mark{width:22px;text-align:center;font-weight:600}
+.li .t{flex:1;min-width:0}
+.li .t > b{display:block}
+label.li{cursor:pointer}
+.li .t span{color:var(--mute);font-size:13px}
+.room{padding:7px 14px;background:var(--soft);font-weight:600;font-size:13px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)} .mute{color:var(--mute)}
+.banner{border-radius:var(--r);padding:10px 12px;margin:10px 0;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner.warn{background:var(--warn-soft);color:var(--warn)} .banner.bad{background:var(--bad-soft);color:var(--bad)} .banner.info{background:var(--info-soft);color:var(--info)} .banner.ok{background:var(--ok-soft);color:var(--ok)}
+.photos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+.ph{position:relative;width:78px;height:62px;border-radius:7px;overflow:hidden;border:1px solid var(--line);background:var(--soft)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .x{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:12px;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:24px;cursor:pointer;padding:0}
+.ph .w{position:absolute;left:0;right:0;bottom:0;font-size:10px;font-weight:600;background:var(--warn);color:#fff;text-align:center;padding:1px}
+.camera{position:relative;overflow:hidden}
+.camera input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.hwrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.hwrow:last-child{border-bottom:0}
+.hwrow .ex{grid-column:1/-1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:40px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font:600 14px var(--mono);cursor:pointer;color:var(--ink)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.done{border-color:var(--ok);color:var(--ok)}
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat b{font-size:20px;font-variant-numeric:tabular-nums;display:block}
+.bar{height:8px;border-radius:4px;background:var(--soft);overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--ok)}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t td,table.t th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{color:var(--mute);font-weight:500;font-size:12px}
+.scroll{overflow-x:auto}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:10px;font-weight:500;z-index:20;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.sheet .in{background:var(--panel);border-radius:14px;padding:16px;width:min(560px,100%);max-height:90vh;overflow:auto}
+.testbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--mute);margin:6px 0 2px}
+.testbar label{display:inline-flex;gap:6px;align-items:center;min-height:36px}
+.mail{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;background:var(--soft);border-radius:8px;padding:10px;margin-top:6px}
+.cam{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column}
+.cam video{flex:1;min-height:0;width:100%;object-fit:cover;background:#000}
+.cam .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.cam .flash.go{animation:fl .25s ease-out}
+@keyframes fl{from{opacity:.7}to{opacity:0}}
+.cambar{display:flex;align-items:center;gap:14px;padding:14px max(16px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px));background:#111}
+.camthumbs{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto}
+.camthumbs img{width:54px;height:42px;object-fit:cover;border-radius:5px;border:1px solid #444;flex:none}
+.shutter{width:76px;height:76px;border-radius:50%;border:5px solid #fff;background:#e9e9e9;cursor:pointer;flex:none}
+.shutter:active{background:#bbb}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <button class="hback" id="hdrBack" hidden aria-label="Back">‹ Back</button>
+  <span class="brand">PWC QC<small id="modeTag">test mode</small></span>
+  <span class="grow htitle" id="hdrTitle"></span>
+  <span id="netTag"></span>
+  <div class="tabs" role="tablist" id="viewTabs"><button id="tabTablet" class="on">Tablet</button><button id="tabOffice">Office (test)</button></div>
+</header>
+<main id="app"></main>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   PWC QC - tablet app (v1.0, 2026-11-16)
+   Pallet first: start a pallet -> tick what's on it (all count as passed) -> mark only the failed ones -> pallet photos -> label? -> at Send: truck photo or skip.
+   - MODE "demo": everything stays in this browser (sample jobs, a pretend server and a pretend office PC).
+   - MODE "live": the same page served by the PWC QC Google script (Index.html sets window.PWC_QC_CONFIG = {mode:"live"}); calls go through google.script.run.
+   - MODE "app": the same page inside the Android APK (Capacitor). Calls go to the Google script's web app link (doPost, actions t*); the link + key word are typed once on the tablet.
+   One self-contained file -> can be packed into an Android APK later as-is.
+   ============================================================ */
+const MODE = (window.PWC_QC_CONFIG && window.PWC_QC_CONFIG.mode) || "demo";
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const fmtT = t => { const d = new Date(t); return (d.getMonth() + 1) + "/" + d.getDate() + " " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const STD_HW = ["Grommet", "Brackets", "Shelf Clip", "Extra Key", "Alum. Counter Support", "Screw For Alum Angle To Counter-Top", "Extra Feet", "Leg Adjustment Tool", "Extra Toe Clip", "Biscuit Joint", "Field Seam Kit", "Aluminum Angle"];
+
+/* ---------- storage: IndexedDB (falls back to memory) ---------- */
+const Store = (() => {
+  let db = null, mem = {};
+  const open = () => new Promise(res => { try { const r = indexedDB.open("pwc_qc", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => { db = r.result; res(); }; r.onerror = () => res(); } catch (e) { res(); } });
+  const get = k => new Promise(res => { if (!db) return res(mem[k]); try { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(mem[k]); } catch (e) { res(mem[k]); } });
+  const set = (k, v) => new Promise(res => { mem[k] = v; if (!db) return res(); try { const tx = db.transaction("kv", "readwrite"); tx.objectStore("kv").put(v, k); tx.oncomplete = () => res(); tx.onerror = () => res(); } catch (e) { res(); } });
+  return { open, get, set };
+})();
+
+/* ---------- sample jobs (what the office PC sends from A:) ---------- */
+function demoJobs() {
+  const cab = (num, name, room, load, qty) => ({ id: "c:" + num + "@" + norm(room), kind: "cab", num, name, room, load: load || 1, qty: qty || 1 });
+  const prt = (num, name, room, load, qty) => ({ id: "p:" + num + "@" + norm(room), kind: "part", num, name, room, load: load || 1, qty: qty || 1 });
+  return [
+    { name: "Stevens - Kiddie Academy", hasList: true, loads: 2, hwFrom: "Hardware Picture List",
+      cabinets: [cab("B1", "Base 2-door 36\"", "101 Reception"), cab("B2", "Base drawer 18\"", "101 Reception"), cab("B3", "Base 2-door 30\"", "101 Reception"), cab("W1", "Wall 1-door 18\"", "101 Reception", 1, 2), cab("W2", "Wall 2-door 30\"", "101 Reception"),
+        cab("B10", "Base 2-door 36\"", "104 Classroom"), cab("B11", "Base drawer 18\"", "104 Classroom"), cab("B12", "Base sink 36\"", "104 Classroom"), cab("B13", "Base drawer 18\"", "104 Classroom"), cab("T1", "Tall pantry 24\"", "104 Classroom"),
+        cab("B20", "Base 2-door 30\"", "110 Staff", 2), cab("B21", "Base sink 33\"", "110 Staff", 2), cab("W20", "Wall 2-door 30\"", "110 Staff", 2), cab("T20", "Tall locker 18\"", "110 Staff", 2)],
+      parts: [prt("F1", "Filler 3\" x 30\"", "101 Reception"), prt("F2", "Filler 3\" x 30\"", "104 Classroom"), prt("EP1", "End panel 24\" x 34-1/2\"", "104 Classroom", 1, 2), prt("CT1", "PLAM top 96\" x 25\"", "104 Classroom"), prt("TK1", "Toe kick 96\"", "110 Staff", 2, 3)],
+      hardware: ["Grommet 2\" black", "Shelf clip 5mm", "Extra key (cam lock)", "Adjustable leg", "Hafele lift (special order)", "Aluminum counter support 18\"", "Wire pull 4\" SS", "Touch latch"] },
+    { name: "Hargrave - Lemont Fire Station #4", hasList: true, loads: 1, hwFrom: "",
+      cabinets: [cab("B1", "Base 2-door 36\"", "Kitchen"), cab("B2", "Base drawer 24\"", "Kitchen"), cab("B3", "Base sink 36\"", "Kitchen"), cab("W1", "Wall 2-door 36\"", "Kitchen"), cab("W2", "Wall 2-door 30\"", "Kitchen"), cab("T1", "Tall pantry 30\"", "Day Room")],
+      parts: [prt("F1", "Filler 3\" x 34-1/2\"", "Kitchen"), prt("ST1", "Solid surface top 120\"", "Kitchen")], hardware: [] },
+    { name: "W.B. Olson - Campbell Laundry", hasList: false, loads: 1, cabinets: [], parts: [], hardware: [] },
+    { name: "Manusos - Mundelein Phase 2", hasList: true, loads: 1, hwFrom: "Hardware Picture List",
+      cabinets: [cab("B1", "Base 2-door 36\"", "Lobby"), cab("B2", "Base 2-door 36\"", "Lobby"), cab("RC1", "Reception counter", "Lobby")],
+      parts: [prt("TP1", "Transaction top 72\"", "Lobby")], hardware: ["Grommet 3\" silver", "Keyboard tray"] }
+  ];
+}
+function demoServerStart() {   /* one report "sent yesterday" so the lists show real status */
+  const y = Date.now() - 864e5;
+  const it = (kind, num, name, room, pallet, pass, comment) => ({ kind, key: (kind === "cab" ? "c:" : "p:") + num + "@" + norm(room), num, name, room, load: 1, pallet, pass, photos: [], comment: comment || "" });
+  return { reports: [
+    { id: "r_demo1", job: "Stevens - Kiddie Academy", by: "TN", t: y, items: [
+      it("cab", "B1", "Base 2-door 36\"", "101 Reception", "P-01", true), it("cab", "B2", "Base drawer 18\"", "101 Reception", "P-01", true),
+      it("cab", "B12", "Base sink 36\"", "104 Classroom", "P-02", false, "Chip on left end panel"), it("part", "F2", "Filler 3\" x 30\"", "104 Classroom", "P-02", false, "Wrong length")],
+      pallets: [{ pallet: "P-01", load: 1, keys: ["c:B1@101reception", "c:B2@101reception"], photos: [{ id: "x", data: "" }], label: false, loaded: false, loadPhotos: [], loadKeys: [] },
+                { pallet: "P-02", load: 1, keys: ["c:B12@104classroom", "p:F2@104classroom"], photos: [{ id: "y", data: "" }], label: true, loaded: false, loadPhotos: [], loadKeys: [] }],
+      hw: null, loadQ: [{ load: 1, cleat: "Yes", print: "Yes", printPhoto: [] }], filed: true }
+  ], emails: [], filed: [], labels: [{ job: "Stevens - Kiddie Academy", pallet: "P-02", load: 1, t: y, by: "TN", printed: true }] };
+}
+
+/* ---------- API: demo (pretend server in this browser) / live (Google script) ---------- */
+const API = {
+  async jobs() { if (MODE === "demo") { ST.listsT = Date.now(); return demoJobs(); } return liveCall("jobs"); },
+  async reports(job) { if (MODE === "demo") return (await srv()).reports.filter(r => r.job === job); return liveCall("reports", { job }); },
+  async send(rep) {
+    if (MODE !== "demo") return liveCall("send", rep);
+    if (ST.offline) throw new Error("No Wi-Fi");
+    await new Promise(r => setTimeout(r, 400));
+    const s = await srv(); if (s.reports.some(r => r.id === rep.id)) return { ok: true };
+    s.reports.push(Object.assign({}, rep, { received: Date.now() }));
+    const fails = failedIn(rep);
+    if (fails.length) s.emails.push({ t: Date.now(), subject: `QC FAILED - ${rep.job}`, body: `${rep.by} marked ${plural(fails.length, "item")} as failed QC on ${fmtT(rep.t)}:\n` + fails.map(f => `  - ${f.pallet ? f.pallet + " " : ""}${f.num} ${f.name || ""}${f.room ? " (" + f.room + ")" : ""}: ${f.comment || "no comment"}`).join("\n") + `\n\nThe report and photos will be filed in ${rep.job}\\08 Shop Documents\\QC Report.` });
+    for (const p of rep.pallets || []) if (p.label === true && !s.labels.some(l => l.job === rep.job && l.pallet === p.pallet)) s.labels.push({ job: rep.job, pallet: p.pallet, load: p.load, t: Date.now(), by: rep.by, printed: false });
+    await Store.set("demoServer", s); return { ok: true };
+  }
+};
+/* live: google.script.run -> Code.gs (qcJobs / qcReports / qcPhoto / qcSubmit); photos are uploaded one by one first */
+function gsr(fn, ...args) { return new Promise((res, rej) => { try { google.script.run.withSuccessHandler(r => { if (r && r.error) { const e = new Error(r.error); e.server = true; rej(e); } else res(r); }).withFailureHandler(e => rej(new Error((e && e.message) || "No connection")))[fn](...args); } catch (e) { rej(new Error("No connection")); } }); }
+const PHOTO_KEYS = ["photos", "labelPhoto", "loadPhotos", "printPhoto", "extraPhotos", "loadedPhotos"];
+function eachPhoto(rep, cb) {
+  (rep.items || []).forEach(it => { (it.photos || []).forEach((p, i) => cb(p, `${it.pallet ? it.pallet + "_" : ""}${it.num}_${i + 1}.jpg`)); (it.labelPhoto || []).forEach((p, i) => cb(p, `${it.num}_label_${i + 1}.jpg`)); });
+  (rep.pallets || []).forEach(pl => { (pl.photos || []).forEach((p, i) => cb(p, `${pl.pallet}_pallet_${i + 1}.jpg`)); (pl.loadPhotos || []).forEach((p, i) => cb(p, `${pl.pallet}_truck_${i + 1}.jpg`)); });
+  if (rep.hw) { rep.hw.items.forEach(x => (x.photos || []).forEach((p, i) => cb(p, `HW_${x.name}_${i + 1}.jpg`))); (rep.hw.special.photos || []).forEach((p, i) => cb(p, `HW_special_${i + 1}.jpg`)); (rep.hw.loadedPhotos || []).forEach((p, i) => cb(p, `HW_truck_${i + 1}.jpg`)); (rep.hw.extraPhotos || []).forEach((p, i) => cb(p, `HW_extra_${i + 1}.jpg`)); }
+  (rep.loadQ || []).forEach(q => (q.printPhoto || []).forEach((p, i) => cb(p, `Load${q.load}_install_print_${i + 1}.jpg`)));
+}
+/* APK: POST to the web app link (Capacitor's native HTTP, so no browser limits) */
+async function postCall(action, extra) {
+  let r; try { r = await fetch(ST.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ key: ST.key, action }, extra || {})) }); }
+  catch (e) { throw new Error("No connection"); }
+  let j; try { j = await r.json(); } catch (e) { throw new Error("No connection"); }
+  if (!j.ok) { const e = new Error(j.error || "Error"); e.server = true; throw e; } return j;
+}
+const call = (fn, ...a) => MODE === "app" ? postCall({ qcJobs: "tJobs", qcReports: "tReports", qcPhoto: "tPhoto", qcSubmit: "tSubmit", qcCheck: "ping" }[fn], ({ qcJobs: () => ({}), qcReports: () => ({ job: a[1] }), qcPhoto: () => ({ id: a[1], name: a[2], data: a[3] }), qcSubmit: () => ({ report: a[1] }), qcCheck: () => ({}) })[fn]()) : gsr(fn, ...a);
+async function liveCall(what, arg) {
+  const key = ST.key;
+  if (what === "jobs") { const r = await call("qcJobs", key); ST.listsT = r.t || 0; return r.jobs || []; }
+  if (what === "reports") { const r = await call("qcReports", key, arg.job); return r.reports || []; }
+  if (what === "send") {
+    const list = []; eachPhoto(arg, (p, name) => { p.name = p.name || name.replace(/[\\/:*?"<>|]+/g, "_"); if (p.data && !p.file) list.push(p); });
+    let n = 0; for (const p of list) { const r = await call("qcPhoto", key, arg.id, p.name, p.data); p.file = r.file; p.data = ""; n++; persist(); }
+    const slim = JSON.parse(JSON.stringify(arg)); eachPhoto(slim, p => { delete p.data; });
+    await call("qcSubmit", key, slim); return { ok: true, photos: n };
+  }
+}
+let SRV = null; async function srv() { if (!SRV) SRV = (await Store.get("demoServer")) || demoServerStart(); if (!SRV.labels) SRV.labels = []; return SRV; }
+
+/* ---------- status of items and pallets, worked out from reports (same rules will run in the Google script and the PWC app) ---------- */
+function statusFrom(reports) {
+  const items = {}, pallets = {}, loadQ = {}, hwDone = {};
+  const sorted = reports.slice().sort((a, b) => a.t - b.t);
+  const P = name => pallets[name] || (pallets[name] = { keys: [], load: 1, photos: 0, label: null, loaded: false, loadPhotos: 0 });
+  for (const r of sorted) {
+    for (const it of r.items || []) {
+      const s = items[it.key] || (items[it.key] = { checks: [], passCount: 0, last: null, loaded: false, manual: !!it.manual, num: it.num, name: it.name, room: it.room, kind: it.kind, failedOnce: null, pallet: "" });
+      s.checks.push({ t: r.t, by: r.by, pass: it.pass, comment: it.comment, pallet: it.pallet });
+      if (it.pass) s.passCount++; else s.failedOnce = s.failedOnce || { t: r.t, by: r.by, comment: it.comment };
+      s.last = { t: r.t, by: r.by, pass: it.pass, comment: it.comment, pallet: it.pallet };
+      if (it.pallet) { s.pallet = it.pallet; const p = P(it.pallet); if (!p.keys.includes(it.key)) p.keys.push(it.key); }
+    }
+    for (const q of r.pallets || []) {
+      const p = P(q.pallet); p.load = q.load || p.load;
+      for (const k of q.keys || []) if (!p.keys.includes(k)) p.keys.push(k);
+      p.photos += (q.photos || []).length; if (q.label != null) p.label = q.label;
+      if (q.loaded) { p.loaded = true; p.loadPhotos += (q.loadPhotos || []).length; for (const k of q.loadKeys || []) if (items[k]) items[k].loaded = true; }
+    }
+    if (r.hw) hwDone[r.hw.load || 1] = { by: r.by, t: r.t, loaded: r.hw.loaded === true };
+    for (const q of r.loadQ || []) loadQ[q.load] = { cleat: q.cleat, print: q.print, by: r.by, t: r.t, hasPhoto: !!(q.printPhoto || []).length };
+  }
+  for (const k in items) { const s = items[k]; if (s.pallet) for (const n in pallets) if (n !== s.pallet) pallets[n].keys = pallets[n].keys.filter(x => x !== k); }
+  return { items, pallets, loadQ, hwDone, reports: sorted.length, lastT: sorted.length ? sorted[sorted.length - 1].t : 0, lastBy: sorted.length ? sorted[sorted.length - 1].by : "" };
+}
+const failedIn = rep => (rep.items || []).filter(i => i.pass === false);
+
+/* ---------- tablet state ---------- */
+const ST = { view: "tablet", screen: "jobs", job: null, load: 1, drafts: {}, outbox: [], sentLog: [], jobs: [], reps: {}, manual: {}, recent: [], offline: false, listsT: 0,
+  form: null, pallet: null, queue: null, pick: null, filter: "todo", allLoads: false, search: "", sel: null };
+let saveT = null;
+function persist() { clearTimeout(saveT); saveT = setTimeout(() => Store.set("tablet", { drafts: ST.drafts, outbox: ST.outbox, sentLog: ST.sentLog.slice(-50), jobs: ST.jobs.filter(j => !j.other).length ? ST.jobs : ST.jobs, manual: ST.manual, recent: ST.recent, listsT: ST.listsT }), 250); }
+const job = () => ST.jobs.find(j => j.name === ST.job);
+const draft = () => ST.drafts[ST.job] || (ST.drafts[ST.job] = { id: "r_" + uid(), job: ST.job, items: [], hw: null, pallets: [], loadQ: [], started: Date.now() });
+const palUsed = p => !!(p.keys.length || p.photos.length || p.label != null || p.loaded || p.toLoad);
+const hasDraft = name => { const d = ST.drafts[name]; return !!d && !!(d.items.length || d.hw || d.pallets.some(palUsed)); };
+const itemsOf = j => j.cabinets.concat(j.parts, ST.manual[j.name] || []);
+const itemById = (j, k) => itemsOf(j).find(i => i.id === k);
+function liveStatus(j) {   /* sent reports + reports waiting to send + this report */
+  const extra = ST.outbox.filter(r => r.job === j.name).concat(hasDraft(j.name) ? [Object.assign({ t: Date.now(), by: "(this report)" }, ST.drafts[j.name])] : []);
+  return statusFrom((ST.reps[j.name] || []).concat(extra));
+}
+function itemState(it, S) {
+  const s = S.items[it.id]; if (!s) return { cls: "", mark: "○", label: "to QC", done: false, failed: false };
+  if (s.last && s.last.pass === false) return { cls: "bad", mark: "✕", label: "failed", done: false, failed: true, s };
+  const need = it.qty || 1; if (s.passCount < need) return { cls: "warn", mark: "◐", label: `${s.passCount} of ${need}`, done: false, failed: false, s };
+  return { cls: "ok", mark: "✔", label: s.loaded ? "loaded" : "passed", done: true, failed: false, loaded: s.loaded, s, rechecked: !!s.failedOnce };
+}
+const palletOf = (k, S) => { for (const n in S.pallets) if (S.pallets[n].keys.includes(k)) return n; return ""; };
+const sortP = arr => arr.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+function nextPalletName(j) { const S = liveStatus(j); const used = Object.keys(S.pallets).map(p => +String(p).replace(/\D/g, "") || 0); return "P-" + String(Math.max(0, ...used) + 1).padStart(2, "0"); }
+function draftPallet(name, load) { const d = draft(); let p = d.pallets.find(x => x.pallet === name); if (!p) { p = { pallet: name, load: load || ST.load, keys: [], photos: [], label: null, loaded: false, loadPhotos: [], loadKeys: [], truck: "" }; d.pallets.push(p); } return p; }
+
+function toast(m, ms) { document.querySelectorAll(".toast").forEach(t => t.remove()); const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), ms || 2600); }
+function sheet(html, wire) { const d = document.createElement("div"); d.className = "sheet"; d.innerHTML = `<div class="in" role="dialog">${html}</div>`; document.body.appendChild(d); d.addEventListener("click", e => { if (e.target === d || e.target.hasAttribute("data-close")) d.remove(); }); wire && wire(d); return d; }
+
+/* ---------- photos: shrink to 1600px JPEG, warn if dark or blurry ---------- */
+function readPhoto(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader(); fr.onerror = () => rej(new Error("Couldn't read the photo"));
+    fr.onload = () => { const img = new Image(); img.onerror = () => rej(new Error("Not a photo")); img.onload = () => {
+      res(photoFrom(img, img.width, img.height)); }; img.src = fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+/* one photo from an image or a live camera frame: 1600px JPEG + dark / blurry check */
+function photoFrom(src, sw, sh) {
+      const max = 1600, sc = Math.min(1, max / Math.max(sw, sh)), w = Math.round(sw * sc), h = Math.round(sh * sc);
+      const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(src, 0, 0, w, h);
+      const data = c.toDataURL("image/jpeg", 0.78);
+      const s = 128, c2 = document.createElement("canvas"); c2.width = s; c2.height = s; const x2 = c2.getContext("2d"); x2.drawImage(src, 0, 0, s, s);
+      const px = x2.getImageData(0, 0, s, s).data, g = new Float32Array(s * s); let sum = 0;
+      for (let i = 0; i < s * s; i++) { g[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]; sum += g[i]; }
+      let lap = 0, lap2 = 0, n = 0; for (let y = 1; y < s - 1; y++) for (let xx = 1; xx < s - 1; xx++) { const i = y * s + xx; const v = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - s] - g[i + s]; lap += v; lap2 += v * v; n++; }
+      const mean = sum / (s * s), sharp = lap2 / n - (lap / n) ** 2;
+      return { id: uid(), data, w, h, warn: mean < 45 ? "Too dark" : sharp < 40 ? "Blurry" : "" };
+}
+let PHS = {};
+/* 📷 Camera = one shot, you stay on this screen (tap again for the next). 🖼 Pick several = choose many from the gallery at once. */
+function photoBlock(arr, label) {
+  const k = "ph" + uid(); PHS[k] = arr;
+  return `<div class="photos">${arr.map((p, i) => `<div class="ph">${p.data ? `<img src="${p.data}" alt="${esc(label)} ${i + 1}">` : `<span class="phx">photo</span>`}${p.warn ? `<div class="w">${esc(p.warn)}</div>` : ""}<button class="x" data-phdel="${k}:${i}" aria-label="Remove photo ${i + 1}">×</button></div>`).join("")}
+    <button type="button" class="btn small" data-cam="${k}">📷 Camera</button><input type="file" accept="image/*" capture="environment" data-phadd="${k}" hidden aria-label="${esc(label)}: camera">
+    <span class="btn camera small">🖼 Pick several<input type="file" accept="image/*" multiple data-phadd="${k}" aria-label="${esc(label)}: pick several"></span>
+    ${arr.length ? `<span class="sub">${plural(arr.length, "photo")}</span>` : ""}</div>`;
+}
+function wirePhotos(root, redraw) {
+  root.querySelectorAll("[data-phadd]").forEach(inp => inp.onchange = async () => {
+    const arr = PHS[inp.dataset.phadd]; const files = [...inp.files]; if (!files.length) return; let warn = "";
+    for (const f of files) { try { const p = await readPhoto(f); arr.push(p); if (p.warn) warn = p.warn; } catch (e) { toast(e.message); } }
+    if (warn) toast(`A photo looks ${warn.toLowerCase()} - retake it if you can't see the detail.`, 3500);
+    persist(); redraw(); });
+  root.querySelectorAll("[data-cam]").forEach(b => b.onclick = () => {
+    const k = b.dataset.cam, inp = root.querySelector(`input[data-phadd="${k}"][capture]`);
+    if (CAM_BLOCKED || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return inp.click();
+    liveCam(PHS[k], redraw);
+  });
+  root.querySelectorAll("[data-phdel]").forEach(b => b.onclick = () => { const [k, i] = b.dataset.phdel.split(":"); PHS[k].splice(+i, 1); persist(); redraw(); });
+}
+/* live camera: tap the big button again and again - every tap is saved - then Done. If the page isn't allowed the live camera, the 📷 button opens the normal camera instead. */
+let CAM_BLOCKED = false;
+async function liveCam(arr, redraw) {
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
+  catch (e) { CAM_BLOCKED = true; toast("The live camera isn't allowed here. Tap 📷 Camera again for the normal camera, or use 🖼 Pick several.", 5000); return; }
+  const ov = document.createElement("div"); ov.className = "cam";
+  ov.innerHTML = `<video playsinline muted autoplay></video><div class="flash"></div>
+    <div class="cambar"><div class="camthumbs" id="camT"></div><button class="shutter" id="camShot" aria-label="Take photo"></button><button class="btn primary" id="camDone">Done (<span id="camN">0</span>)</button></div>`;
+  document.body.appendChild(ov); const v = ov.querySelector("video"); v.srcObject = stream; let n = 0;
+  const stop = () => { stream.getTracks().forEach(t => t.stop()); ov.remove(); persist(); redraw(); };
+  ov.querySelector("#camShot").onclick = () => {
+    if (!v.videoWidth) return; const p = photoFrom(v, v.videoWidth, v.videoHeight); arr.push(p); n++;
+    $("camN").textContent = n; const f = ov.querySelector(".flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+    const im = document.createElement("img"); im.src = p.data; im.alt = "Photo " + n; $("camT").prepend(im);
+    if (p.warn) toast(`That one looks ${p.warn.toLowerCase()}.`, 1800);
+  };
+  ov.querySelector("#camDone").onclick = stop;
+  window.addEventListener("popstate", function pop() { if (document.body.contains(ov)) stop(); window.removeEventListener("popstate", pop); });
+}
+function seg(name, val, opts, cls) { return `<div class="seg" role="group" data-seg="${name}">${opts.map(o => `<button type="button" class="${val === o ? "on " + (cls && cls[o] || "") : ""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`; }
+function wireSeg(root, name, on) { const g = root.querySelector(`[data-seg="${name}"]`); if (g) g.querySelectorAll("button").forEach(b => b.onclick = () => on(b.dataset.v)); }
+
+/* ---------- navigation: back in the top bar, at the bottom, and the tablet's own back key ---------- */
+const PARENT = { job: "jobs", pallet: "job", palpick: "pallet", item: null, pick: "job", hw: "job", sign: "job", loadpal: "pallet" };
+function back() {
+  if (ST.view !== "tablet") return;
+  const s = ST.screen;
+  if (s === "jobs") return;
+  if (s === "item") { const F = ST.form; ST.form = null; ST.queue = null; if (F && F.pallet && ST.pallet === F.pallet) return go("pallet", true); if (F && F._edit != null) return go("job", true); return go("pick", true); }
+  if (s === "job") { ST.job = null; ST.queue = null; }
+  if (s === "pallet") ST.queue = null;
+  go(PARENT[s] || "jobs", true);
+}
+function go(screen, isBack) {
+  ST.screen = screen; render();
+  if (!isBack) { try { history.pushState({ qc: 1 }, ""); } catch (e) {} }
+}
+window.addEventListener("popstate", () => { if (document.querySelector(".sheet")) { document.querySelectorAll(".sheet").forEach(s => s.remove()); return; } back(); });
+let wake = null;
+async function keepAwake() { try { if (navigator.wakeLock && !wake) { wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => wake = null); } } catch (e) {} }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && ST.job) keepAwake(); });
+
+/* ================= SCREENS ================= */
+const TITLES = { jobs: "", job: () => job() ? job().name : "", pallet: () => ST.pallet ? `Pallet ${ST.pallet}` : "", palpick: () => `${ST.pallet} · pick what's on it`, item: () => ST.form ? `${ST.form.pallet ? ST.form.pallet + " · " : ""}${ST.form.num}` : "", pick: "Single check", hw: "Hardware check", sign: "Sign off & send", loadpal: () => `Load ${ST.pallet}` };
+function render() {
+  PHS = {};
+  $("tabTablet").classList.toggle("on", ST.view === "tablet"); $("tabOffice").classList.toggle("on", ST.view === "office");
+  $("netTag").innerHTML = ST.outbox.length ? `<span class="pill warn">${ST.outbox.length} waiting to send</span>` : "";
+  const inTab = ST.view === "tablet" && ST.screen !== "jobs" && ST.screen !== "key";
+  $("hdrBack").hidden = !inTab; const tt = TITLES[ST.screen]; $("hdrTitle").textContent = ST.view === "tablet" ? (typeof tt === "function" ? tt() : tt || "") : "";
+  const app = $("app");
+  if (ST.view === "office") return renderOffice(app);
+  ({ key: scrKey, jobs: scrJobs, job: scrJob, pallet: scrPallet, palpick: scrPalPick, item: scrItem, pick: scrPick, hw: scrHw, sign: scrSign, loadpal: scrLoadPal }[ST.screen] || scrJobs)(app);
+  window.scrollTo(0, 0);
+}
+function outboxBanner() {
+  if (!ST.outbox.length) return "";
+  return `<div class="banner warn"><b>${plural(ST.outbox.length, "report")} waiting to send.</b><span class="grow">Keep this app open and don't clear the browser - it sends by itself when Wi-Fi is back.</span><button class="btn small" id="sendNow">Send now</button></div>`;
+}
+const bottomBack = () => `<div class="row" style="margin-top:14px"><button class="btn ghost" data-back>‹ Back</button></div>`;
+function wireCommon(app) { const b = $("sendNow"); if (b) b.onclick = () => flushOutbox(); app.querySelectorAll("[data-back]").forEach(x => x.onclick = back); }
+
+/* 0. Key word (live, first time) */
+function scrKey(app) {
+  app.innerHTML = `<h1>Set up this tablet</h1><p class="sub">${MODE === "app" ? "Paste the QC link and type the key word once. Ask Martin for both." : "Type the QC key word once. Ask Martin for it."}</p>
+    ${MODE === "app" ? `<label class="f" for="kurl">QC link</label><input type="text" id="kurl" autocomplete="off" autocapitalize="off" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(ST.url || "")}">` : ""}
+    <label class="f" for="kw">Key word</label><input type="text" id="kw" autocomplete="off" autocapitalize="off">
+    <button class="btn primary big" id="kwGo">Start</button>`;
+  $("kwGo").onclick = async () => { const k = $("kw").value.trim(); if (!k) return; $("kwGo").disabled = true;
+    if (MODE === "app") { const u = $("kurl").value.trim(); if (!/^https:\/\//.test(u)) { $("kwGo").disabled = false; return toast("Paste the QC link (starts with https://)."); } ST.url = u; }
+    try { const old = ST.key; ST.key = k; try { await call("qcCheck", k); } catch (e) { ST.key = old; throw e; } await Store.set("key", k); if (MODE === "app") await Store.set("url", ST.url); await loadLists(); go("jobs"); toast("Tablet ready."); if (MODE === "app") setTimeout(checkAppUpdate, 3000); }
+    catch (e) { $("kwGo").disabled = false; toast(e.server ? "That key word is wrong." : "No connection - check the Wi-Fi.", 4000); } };
+}
+/* 1. Jobs */
+function scrJobs(app) {
+  const q = norm(ST.search);
+  const list = ST.jobs.filter(j => !q || norm(j.name).includes(q));
+  app.innerHTML = `${MODE === "demo" ? `<div class="banner info"><span class="grow"><b>Test mode.</b> Sample jobs, nothing leaves this browser. The <b>Office (test)</b> tab shows what the office PC gets.</span></div>
+    <div class="testbar"><label><input type="checkbox" id="offT" ${ST.offline ? "checked" : ""}> Pretend there's no Wi-Fi</label><button class="btn small ghost" id="resetT">Reset test data</button></div>` : ""}
+    ${outboxBanner()}
+    <h1>Jobs</h1><div class="sub">Lists from the office PC · ${ST.listsT ? "sent " + fmtT(ST.listsT) : "not sent yet"} <button class="btn small ghost" id="refresh">Refresh</button></div>
+    <label class="f" for="jobQ">Find a job</label><input type="search" id="jobQ" placeholder="Type customer or project" value="${esc(ST.search)}">
+    <div class="list" style="margin-top:10px">${list.map(j => { const S = liveStatus(j); const all = itemsOf(j); const done = all.filter(it => itemState(it, S).done).length;
+      return `<button class="li" data-job="${esc(j.name)}"><span class="t"><b>${esc(j.name)}</b><span>${S.reports && (ST.reps[j.name] || []).length ? `Last QC ${fmtT(S.lastT)} ${esc(S.lastBy)} · ${done} of ${all.length} done` : j.hasList ? "No QC yet" : "Other job / no list"}${hasDraft(j.name) ? " · <b class='warn'>report started</b>" : ""}</span></span>
+        ${j.hasList ? `<span class="pill ok">Packing list ✔</span>` : `<span class="pill warn">⚠ No packing list</span>`}</button>`; }).join("") || `<div class="li mute">No job matches "${esc(ST.search)}".</div>`}</div>
+    <button class="btn" style="margin-top:12px" id="otherJob">+ Other job (not on the list)</button>
+    ${MODE === "app" ? `<div class="sub" style="margin-top:18px">PWC QC app ${esc((window.PWC_QC_BUILD || {}).version || "")} · <a href="#" id="chgLink">change QC link / key word</a> · <a href="#" id="chkUp">check for update</a></div>` : ""}`;
+  app.querySelectorAll("[data-job]").forEach(b => b.onclick = () => openJob(b.dataset.job));
+  if ($("chgLink")) $("chgLink").onclick = e => { e.preventDefault(); go("key"); };
+  if ($("chkUp")) $("chkUp").onclick = e => { e.preventDefault(); toast("Checking…"); checkAppUpdate(); };
+  $("jobQ").oninput = e => { ST.search = e.target.value; const pos = e.target.selectionStart; scrJobs(app); const n = $("jobQ"); n.focus(); n.setSelectionRange(pos, pos); };
+  $("refresh").onclick = async () => { await loadLists(); render(); toast("Lists updated."); };
+  $("otherJob").onclick = () => sheet(`<h2 style="margin-top:0">Other job</h2><p class="sub">For a job that isn't on the list yet. The office fixes the name when it files the report.</p>
+    <label class="f" for="ojN">Customer - Project</label><input type="text" id="ojN" placeholder="e.g. Pepper - Elgin Library">
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="ojGo">Start QC</button><button class="btn" data-close>Cancel</button></div>`, sh => {
+      $("ojGo").onclick = () => { const n = $("ojN").value.trim(); if (!n) return toast("Type the job name."); if (!ST.jobs.some(j => j.name === n)) ST.jobs.push({ name: n, hasList: false, loads: 1, cabinets: [], parts: [], hardware: [], other: true }); sh.remove(); persist(); openJob(n); }; });
+  if ($("offT")) $("offT").onchange = e => { ST.offline = e.target.checked; if (!ST.offline) flushOutbox(); toast(ST.offline ? "Wi-Fi is off (pretend). Reports will wait." : "Wi-Fi is back. Sending…"); };
+  if ($("resetT")) $("resetT").onclick = () => sheet(`<h2 style="margin-top:0">Reset test data?</h2><p class="sub">Clears the sample reports, the office view and anything started on this tablet.</p><div class="row"><button class="btn primary" id="rsGo">Reset</button><button class="btn" data-close>Cancel</button></div>`, sh => {
+      $("rsGo").onclick = async () => { SRV = demoServerStart(); await Store.set("demoServer", SRV); ST.drafts = {}; ST.outbox = []; ST.sentLog = []; ST.manual = {}; await loadLists(); persist(); sh.remove(); render(); toast("Test data reset."); }; });
+  wireCommon(app);
+}
+async function openJob(name) { ST.job = name; try { ST.reps[name] = await API.reports(name); } catch (e) {} ST.load = firstOpenLoad(job()); keepAwake(); go("job"); }
+function firstOpenLoad(j) { if (!j || (j.loads || 1) < 2) return 1; const S = liveStatus(j); for (let l = 1; l <= j.loads; l++) if (itemsOf(j).filter(i => (i.load || 1) === l).some(i => !itemState(i, S).loaded)) return l; return 1; }
+
+/* 2. Job page - pallets first */
+function scrJob(app) {
+  const j = job(), d = draft(), S = liveStatus(j), L = ST.load, multi = (j.loads || 1) > 1;
+  const pals = sortP(Object.keys(S.pallets).filter(p => !multi || S.pallets[p].load === L));
+  const inLoad = it => !multi || (it.load || 1) === L;
+  const loose = itemsOf(j).filter(it => inLoad(it) && !palletOf(it.id, S));
+  const lq = S.loadQ[L]; const S0hw = statusFrom(ST.reps[j.name] || []).hwDone[L];
+  const palRow = p => { const P = S.pallets[p]; const its = P.keys.map(k => ({ k, s: S.items[k] })); const pass = its.filter(x => x.s && x.s.last && x.s.last.pass).length, bad = its.filter(x => x.s && x.s.last && x.s.last.pass === false).length, todo = its.filter(x => !x.s).length;
+    return `<button class="li" data-pal="${esc(p)}"><span class="tag" style="min-width:52px">${esc(p)}</span><span class="t"><b>${plural(its.length, "item")}</b><span>${pass ? `<span class="ok">${pass} passed</span>` : ""}${bad ? ` · <span class="bad">${bad} failed</span>` : ""}${todo ? ` · ${todo} to QC` : ""}${!P.photos ? ` · <span class="warn">no pallet photo</span>` : ""}${P.label ? " · 🏷 label" : ""}</span></span>${P.loaded ? `<span class="pill info">🚚 Loaded</span>` : `<span class="pill acc">Open</span>`}</button>`; };
+  app.innerHTML = `${outboxBanner()}
+    <h1>${esc(j.name)}</h1><div class="sub">Date: ${new Date().toLocaleString([], { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} (filled in for you)</div>
+    ${!j.hasList ? `<div class="banner warn">⚠ No packing list for this job yet. Add cabinets and parts by hand - the office sees them as "added by hand".</div>` : ""}
+    ${multi ? `<label class="f">Load (from the Shipping Check List)</label><div class="chips">${Array.from({ length: j.loads }, (_, k) => `<button class="chip ${L === k + 1 ? "on" : ""}" data-load="${k + 1}">Load ${k + 1}</button>`).join("")}</div>` : ""}
+    <div class="cols"><div><h2>Pallets${multi ? ` · Load ${L}` : ""}</h2>
+    <div class="list">${pals.map(palRow).join("") || `<div class="li mute" style="cursor:default">No pallets yet.</div>`}</div>
+    <button class="btn primary big" id="newPal">+ Start new pallet (${esc(nextPalletName(j))})</button>
+    <div class="sub" style="margin-top:8px">Not on a pallet yet: ${plural(loose.filter(i => i.kind === "cab").length, "cabinet")} · ${plural(loose.filter(i => i.kind === "part").length, "part")}</div>
+    </div><div><h2>Other</h2>
+    <div class="list">
+      <button class="li" id="goHw"><span class="mark">🔩</span><span class="t"><b>Hardware check list${multi ? ` · Load ${L}` : ""}</b><span>${S0hw ? `<span class="ok">✔ Done</span> by ${esc(S0hw.by)} ${fmtT(S0hw.t)}${S0hw.loaded ? " · shipped" : ""} - once per load` : (j.hardware.length ? `from ${esc(j.hwFrom || "Hardware Picture List")} · ${plural(j.hardware.length, "item")}` : "no Hardware Picture List - standard 12 items")}${d.hw ? " · <span class='ok'>filled in</span>" : ""}</span></span><span class="pill ${S0hw ? "ok" : "acc"}">${S0hw ? "Done" : "Open"}</span></button>
+      <button class="li" id="goPick"><span class="mark">✓</span><span class="t"><b>Single check / re-check</b><span>Find one cabinet or part, e.g. to re-check a failed one</span></span><span class="pill acc">Open</span></button>
+    </div>
+    <h2>Hanging cleat / toe kick and installation print${multi ? ` · Load ${L}` : ""}</h2>
+    ${lq ? `<div class="card"><span class="ok">✔ Done</span> by ${esc(lq.by)} ${fmtT(lq.t)} - cleat / toe kick: <b>${esc(lq.cleat)}</b>, install print: <b>${esc(lq.print)}</b>${lq.hasPhoto ? " 📷" : ""}. <span class="sub">Asked once per load.</span></div>` : `<div class="sub">Asked once per load, on the Sign off page.</div>`}
+    <h2>In this report</h2>${draftList(j, d)}
+    </div></div><button class="btn primary big" id="goSign" ${hasDraft(j.name) ? "" : "disabled"}>Sign off &amp; send ›</button>${bottomBack()}`;
+  app.querySelectorAll("[data-load]").forEach(b => b.onclick = () => { ST.load = +b.dataset.load; render(); });
+  app.querySelectorAll("[data-pal]").forEach(b => b.onclick = () => { ST.pallet = b.dataset.pal; go("pallet"); });
+  $("newPal").onclick = () => { const n = nextPalletName(j); draftPallet(n, L); persist(); ST.pallet = n; ST.sel = new Set(); go("palpick"); };
+  $("goHw").onclick = () => { if (S0hw && !d.hw) return sheet(`<h2 style="margin-top:0">Hardware already checked</h2><p class="sub">Load ${L} hardware was checked by ${esc(S0hw.by)} ${fmtT(S0hw.t)}${S0hw.loaded ? " and shipped" : ""}. It's done once per load.</p><div class="row"><button class="btn" id="hwAgain">Check again anyway</button><button class="btn primary" data-close>OK</button></div>`, sh => { $("hwAgain").onclick = () => { sh.remove(); go("hw"); }; }); go("hw"); }; $("goPick").onclick = () => { ST.filter = "todo"; ST.search = ""; go("pick"); }; $("goSign").onclick = () => go("sign");
+  app.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { const it = d.items[+b.dataset.edit]; ST.form = JSON.parse(JSON.stringify(it)); ST.form._edit = +b.dataset.edit; go("item"); });
+  app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { d.items.splice(+b.dataset.del, 1); persist(); render(); });
+  wireCommon(app);
+}
+function draftList(j, d) {
+  const rows = d.pallets.map(p => `<div class="li" style="cursor:default"><span class="tag" style="min-width:52px">${esc(p.pallet)}</span><span class="t"><b>${plural(p.keys.length, "item")}${p.toLoad ? " · loading" : ""}</b><span>${plural(p.photos.length, "pallet photo")}${p.label === true ? " · 🏷 label wanted" : p.label === false ? " · no label" : ""}</span></span></div>`)
+    .concat(d.items.map((it, i) => (it.pass && !it.photos.length && !it.comment && !it.manual && !it.recheck) ? "" : `<div class="li" style="cursor:default"><span class="mark ${it.pass ? "ok" : "bad"}">${it.pass ? "✔" : "✕"}</span><span class="t"><b><span class="tag">${esc(it.num)}</span> ${esc(it.name || "")}</b><span>${it.kind === "cab" ? "Cabinet" : "Part"}${it.room ? " · " + esc(it.room) : ""}${it.pallet ? " · " + esc(it.pallet) : ""}${it.photos.length ? " · " + plural(it.photos.length, "photo") : ""}${it.recheck ? " · re-check" : ""}${it.manual ? " · added by hand" : ""}</span></span><button class="btn small" data-edit="${i}">Edit</button><button class="btn small ghost" data-del="${i}" aria-label="Remove ${esc(it.num)}">✕</button></div>`))
+    .concat(d.hw ? [`<div class="li" style="cursor:default"><span class="mark">🔩</span><span class="t"><b>Hardware check list</b><span>${d.hw.items.filter(x => x.val).length} of ${d.hw.items.length} answered${d.hw.items.some(x => x.val === "No") ? ` · <span class="bad">${d.hw.items.filter(x => x.val === "No").length} No</span>` : ""}</span></span></div>`] : []);
+  const r2 = rows.filter(Boolean); return r2.length ? `<div class="list">${r2.join("")}</div>` : `<div class="card mute">Nothing yet. Tap <b>+ Start new pallet</b>.</div>`;
+}
+
+/* 3. Pallet - everything ticked counts as passed; tap an item only to mark it failed */
+function scrPallet(app) {
+  const j = job(), S = liveStatus(j), name = ST.pallet, P = S.pallets[name] || { keys: [], photos: 0, load: ST.load };
+  const dp = draft().pallets.find(x => x.pallet === name);
+  const rows = P.keys.map(k => ({ k, it: itemById(j, k) || { id: k, num: (S.items[k] || {}).num || k, name: (S.items[k] || {}).name || "" }, st: itemState(itemById(j, k) || { id: k }, S) }));
+  const bad = rows.filter(r => r.st.failed).length;
+  const redraw = () => scrPallet(app);
+  const labelVal = dp && dp.label != null ? (dp.label ? "Yes" : "No") : P.label != null ? (P.label ? "Yes" : "No") : "";
+  const sentPh = P.photos - (dp ? dp.photos.length : 0);
+  app.innerHTML = `${outboxBanner()}<h1>Pallet <span class="tag" style="font-size:20px">${esc(name)}</span></h1><div class="sub">${esc(j.name)}${(j.loads || 1) > 1 ? " · Load " + P.load : ""}${P.loaded ? " · 🚚 loaded" : ""}</div>
+    <div class="cols"><div><h2>On this pallet <span class="sub">${plural(rows.length, "item")}${bad ? ` · <span class="bad">${bad} failed</span>` : ""}</span></h2>
+    <div class="sub" style="margin-bottom:6px">All count as passed. Tap one only if something is wrong.</div>
+    <div class="list">${rows.map(r => `<button class="li" data-qc="${esc(r.k)}"><span class="mark ${r.st.cls}">${r.st.mark}</span><span class="tag" style="min-width:52px">${esc(r.it.num)}</span><span class="t"><b>${esc(r.it.name || "")}</b><span>${esc(r.it.room || "")}${r.st.failed ? ` · ${esc(r.st.s.last.comment || "")}` : ""}</span></span><span class="pill ${r.st.failed ? "bad" : r.st.loaded ? "info" : "ok"}">${r.st.failed ? "failed" : r.st.loaded ? "loaded" : "passed"}</span></button>`).join("") || `<div class="li mute" style="cursor:default">Nothing on this pallet yet.</div>`}</div>
+    <button class="btn" style="margin-top:10px" id="addTo">+ Add items to this pallet</button>
+    </div><div><h2>Pallet photos <span class="sub">(required)</span></h2>
+    ${sentPh > 0 ? `<div class="sub">${plural(sentPh, "photo")} sent before.</div>` : ""}
+    ${photoBlock(dp ? dp.photos : draftPallet(name, P.load).photos, "Pallet photo")}
+    <h2>Need a pallet label?</h2>${seg("lbl", labelVal, ["No", "Yes"])}<div class="sub" style="margin-top:4px">Yes = the office gets "Print pallet label" for ${esc(name)} when this report is sent.</div>
+    ${P.loaded ? `<div class="banner info" style="margin-top:14px">🚚 This pallet is loaded.</div>` : dp && palUsed(dp) ? `<div class="sub" style="margin-top:14px">🚚 Truck photo is asked on the Sign off page (you can skip it).</div>` : `<button class="btn big" id="toLoad">🚚 Put this pallet on the truck now</button><div class="sub" style="margin-top:4px">Adds it to this report - the truck photo is asked at Sign off.</div>`}
+    </div></div>
+    <button class="btn primary big" id="nextPal">+ Start next pallet (${esc(nextPalletName(j))})</button>
+    ${bottomBack()}`;
+  app.querySelectorAll("[data-qc]").forEach(b => b.onclick = () => { const it = itemById(j, b.dataset.qc); if (!it) return toast("This item isn't on the list any more."); ST.queue = null; startForm(it, name); });
+  $("addTo").onclick = () => { ST.sel = new Set(); go("palpick"); };
+  $("nextPal").onclick = () => { const dp2 = draft().pallets.find(x => x.pallet === name); if (rows.length && !(P.photos || (dp2 && dp2.photos.length))) toast(`Remember: ${name} still needs a pallet photo before Send.`, 3500); const n = nextPalletName(j); draftPallet(n, P.load); persist(); ST.pallet = n; ST.sel = new Set(); go("palpick"); };
+  wirePhotos(app, redraw);
+  wireSeg(app, "lbl", v => { draftPallet(name, P.load).label = v === "Yes"; persist(); redraw(); });
+  if ($("toLoad")) $("toLoad").onclick = () => { draftPallet(name, P.load).toLoad = true; persist(); toast(`${name} added - the truck photo is asked at Sign off.`); redraw(); };
+  wireCommon(app);
+}
+/* 3b. Pick what's on the pallet (several at once) */
+function scrPalPick(app) {
+  const j = job(), S = liveStatus(j), multi = (j.loads || 1) > 1, sel = ST.sel || (ST.sel = new Set());
+  const free = itemsOf(j).filter(it => !palletOf(it.id, S) && (!multi || ST.allLoads || (it.load || 1) === ST.load) && !itemState(it, S).done);
+  const q = norm(ST.search); const shown = free.filter(it => !q || norm(it.num + " " + it.room + " " + it.name).includes(q));
+  const group = (title, arr) => { if (!arr.length) return ""; const rooms = []; for (const it of arr) { let r = rooms.find(x => x.room === it.room); if (!r) rooms.push(r = { room: it.room, items: [] }); r.items.push(it); }
+    return `<div class="room" style="background:var(--accent-soft);color:var(--accent)">${title}</div>` + rooms.map(r => `<div class="room"><span>Room ${esc(r.room || "-")}</span></div>` + r.items.map(it => `<label class="li"><input type="checkbox" data-sel="${esc(it.id)}" ${sel.has(it.id) ? "checked" : ""} style="width:24px;height:24px;flex:none"><span class="tag" style="min-width:52px">${esc(it.num)}</span><span class="t"><b>${esc(it.name)}</b><span>${(it.qty || 1) > 1 ? `Qty ${it.qty}` : ""}${it.manual ? " added by hand" : ""}</span></span></label>`).join("")).join(""); };
+  app.innerHTML = `<h1>${esc(ST.pallet)} · what's on it?</h1><div class="sub">Tap everything on this pallet - they all count as passed. Shows only items not on a pallet yet${multi ? `, Load ${ST.load}` : ""}.</div>
+    <label class="f" for="ppQ">Find</label><input type="search" id="ppQ" placeholder="Cabinet #, part # or room" value="${esc(ST.search)}">
+    ${multi ? `<label class="sub" style="display:inline-flex;gap:6px;align-items:center;min-height:44px"><input type="checkbox" id="allL" ${ST.allLoads ? "checked" : ""}> Show all loads</label>` : ""}
+    <div class="list" style="margin-top:10px">${group("Cabinets", shown.filter(i => i.kind === "cab")) + group("Loose parts", shown.filter(i => i.kind === "part")) || `<div class="li mute" style="cursor:default">${j.hasList ? "Everything is on a pallet already." : "No packing list - add items by hand below."}</div>`}</div>
+    <button class="btn" style="margin-top:10px" id="addHand">+ Add one not on the list</button>
+    <button class="btn primary big" id="ppGo" ${sel.size ? "" : "disabled"}>Put ${plural(sel.size, "item")} on ${esc(ST.pallet)} ›</button>${bottomBack()}`;
+  $("ppQ").oninput = e => { ST.search = e.target.value; const pos = e.target.selectionStart; scrPalPick(app); const x = $("ppQ"); x.focus(); x.setSelectionRange(pos, pos); };
+  if ($("allL")) $("allL").onchange = e => { ST.allLoads = e.target.checked; render(); };
+  app.querySelectorAll("[data-sel]").forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.sel) : sel.delete(c.dataset.sel); $("ppGo").disabled = !sel.size; $("ppGo").textContent = `Put ${plural(sel.size, "item")} on ${ST.pallet} ›`; });
+  $("addHand").onclick = () => addByHand(it => { sel.add(it.id); render(); });
+  $("ppGo").onclick = () => { const p = draftPallet(ST.pallet, ST.load), d = draft();
+    for (const k of sel) { if (!p.keys.includes(k)) p.keys.push(k); const it = itemById(j, k); if (it && !d.items.some(x => x.key === k)) d.items.push({ kind: it.kind, key: k, num: it.num, name: it.name, room: it.room, load: it.load || ST.load, manual: !!it.manual, recheck: false, pallet: ST.pallet, photos: [], labelPhoto: [], comment: "", pass: true }); }
+    persist(); toast(`${plural(sel.size, "item")} on ${ST.pallet} - all passed. Tap one only if something is wrong.`, 3500); ST.sel = null; ST.search = ""; go("pallet", true); };
+  wireCommon(app);
+}
+function addByHand(done) {
+  sheet(`<h2 style="margin-top:0">Add one not on the list</h2>
+    <label class="f">Type</label>${seg("ahK", "Cabinet", ["Cabinet", "Part"])}
+    <label class="f" for="ahN">Number</label><input type="text" id="ahN" placeholder="e.g. B30 or F9">
+    <label class="f" for="ahD">What is it</label><input type="text" id="ahD" placeholder="e.g. Base 2-door 30&quot;">
+    <label class="f" for="ahR">Room</label><input type="text" id="ahR" placeholder="e.g. 104 Classroom">
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="ahGo">Add</button><button class="btn" data-close>Cancel</button></div>`, sh => {
+    let kind = "cab"; wireSeg(sh, "ahK", v => { kind = v === "Part" ? "part" : "cab"; sh.querySelectorAll('[data-seg="ahK"] button').forEach(b => b.classList.toggle("on", b.dataset.v === v)); });
+    $("ahGo").onclick = () => { const num = $("ahN").value.trim(); if (!num) return toast("Type the number."); const it = { id: (kind === "cab" ? "c:" : "p:") + num + "@" + norm($("ahR").value), kind, num, name: $("ahD").value.trim(), room: $("ahR").value.trim(), load: ST.load, qty: 1, manual: true };
+      (ST.manual[ST.job] = ST.manual[ST.job] || []).push(it); persist(); sh.remove(); done(it); }; });
+}
+
+/* 4. QC one item (in a pallet run: "2 of 4") */
+function startForm(it, pallet) {
+  const S = liveStatus(job()); const st = itemState(it, S);
+  const prev = draft().items.findIndex(x => x.key === it.id);
+  if (prev >= 0) { ST.form = JSON.parse(JSON.stringify(draft().items[prev])); ST.form._edit = prev; ST.form._inRun = true; }
+  else ST.form = { kind: it.kind, key: it.id, num: it.num, name: it.name, room: it.room, load: it.load || ST.load, manual: !!it.manual, recheck: st.failed, pallet: pallet || (st.s && st.s.pallet) || "", photos: [], labelPhoto: [], comment: "", pass: null };
+  go("item");
+}
+function scrItem(app) {
+  const j = job(), F = ST.form, isCab = F.kind === "cab", S = liveStatus(j); const redraw = () => scrItem(app);
+  const inRun = !!ST.queue; const pos = inRun ? `${ST.runTotal - ST.queue.length} of ${ST.runTotal}` : "";
+  const pals = sortP(Object.keys(S.pallets));
+  app.innerHTML = `<div class="row"><h1 class="grow">${isCab ? "Cabinet" : "Part"} <span class="tag" style="font-size:20px">${esc(F.num)}</span></h1>${pos ? `<span class="pill acc">${pos}</span>` : ""}</div>
+    <div class="sub">${esc(F.name || "")}${F.room ? " · Room " + esc(F.room) : ""}${(j.loads || 1) > 1 ? " · Load " + F.load : ""}${F.manual ? " · added by hand" : ""}</div>
+    ${F.recheck ? `<div class="banner bad">Re-check: this failed before. If it passes now, the report shows "Re-checked, passed".</div>` : ""}
+    <label class="f">Pallet</label>${inRun ? `<div class="chips"><span class="chip on">${esc(F.pallet)}</span></div>` : `<div class="chips">${pals.map(p => `<button class="chip ${F.pallet === p ? "on" : ""}" data-pal="${esc(p)}">${esc(p)}</button>`).join("")}<button class="chip" id="newPalI">+ New pallet</button></div>`}
+    <label class="f">Pass QC</label>${seg("pass", F.pass === true ? "Yes" : F.pass === false ? "No" : "", ["Yes", "No"], { Yes: "yes", No: "no" })}
+    ${F.pass === false ? `<div class="banner bad">QC failed - Martin gets an email as soon as this report is sent. It stays off the truck.</div>` : ""}
+    <label class="f" for="cmt">Comment${F.pass === false ? " - what's wrong?" : ""}</label><textarea id="cmt" placeholder="${F.pass === false ? "Goes in the email to Martin" : "Optional"}">${esc(F.comment)}</textarea>
+    <label class="f">Photos <span class="sub">(optional - the pallet photo is what's required)</span></label>${photoBlock(F.photos, "Item photo")}
+    ${!isCab ? `<label class="f">Part label photo <span class="sub">(optional)</span></label>${photoBlock(F.labelPhoto, "Label photo")}` : ""}
+    <button class="btn primary big" id="save">Save</button>
+    <div class="row" style="margin-top:10px;justify-content:space-between"><button class="btn ghost" data-back>‹ Back</button>${inRun ? `<button class="btn ghost" id="skip">Skip ›</button>` : ""}</div>`;
+  app.querySelectorAll("[data-pal]").forEach(b => b.onclick = () => { F.pallet = b.dataset.pal; redraw(); });
+  if ($("newPalI")) $("newPalI").onclick = () => { F.pallet = nextPalletName(j); draftPallet(F.pallet, F.load); persist(); redraw(); toast(`New pallet ${F.pallet}`); };
+  wirePhotos(app, redraw);
+  $("cmt").oninput = e => F.comment = e.target.value;
+  wireSeg(app, "pass", v => { F.pass = v === "Yes"; redraw(); });
+  if ($("skip")) $("skip").onclick = () => { ST.form = null; nextInQueue(); };
+  $("save").onclick = () => {
+    if (F.pass == null) return toast("Pick Pass QC: Yes or No.");
+    if (F.pass === false && !F.comment.trim()) return toast("Say what's wrong in the comment.");
+    const d = draft(); const it = Object.assign({}, F); const ed = it._edit; for (const k of ["_edit", "_inRun"]) delete it[k];
+    if (ed != null) d.items[ed] = it; else d.items.push(it);
+    if (it.pallet) { const p = draftPallet(it.pallet, it.load); if (!p.keys.includes(it.key)) p.keys.push(it.key); }
+    persist(); toast(`${it.num} saved${it.pass ? "" : " - failed"}.`);
+    ST.form = null;
+    if (ST.queue) { if (ST.queue.length) { const k = ST.queue.shift(); const nx = itemById(j, k); if (nx) return startForm(nx, ST.pallet); } return nextInQueue(); }
+    if (it.pallet) { ST.pallet = it.pallet; return go("pallet", true); } go("job", true);
+  };
+  wireCommon(app);
+}
+
+/* 4b. Single check / re-check (find one item) */
+function scrPick(app) {
+  const j = job(), S = liveStatus(j), multi = (j.loads || 1) > 1;
+  const base = itemsOf(j).filter(it => !multi || ST.allLoads || (it.load || 1) === ST.load);
+  const st = it => itemState(it, S);
+  const n = { todo: base.filter(it => !st(it).done).length, bad: base.filter(it => st(it).failed).length, all: base.length };
+  const q = norm(ST.search);
+  const shown = base.filter(it => (ST.filter === "all" || (ST.filter === "bad" ? st(it).failed : !st(it).done)) && (!q || norm(it.num + " " + it.room + " " + it.name).includes(q)));
+  const rooms = []; for (const it of shown) { let r = rooms.find(x => x.room === it.room); if (!r) rooms.push(r = { room: it.room, items: [] }); r.items.push(it); }
+  app.innerHTML = `<h1>Single check / re-check</h1><div class="sub">Every cabinet and part on the job${multi ? ` · Load ${ST.load}` : ""}</div>
+    <label class="f" for="pkQ">Find</label><input type="search" id="pkQ" placeholder="Cabinet #, part # or room" value="${esc(ST.search)}">
+    <div class="row" style="margin-top:10px"><div class="seg" role="group"><button class="${ST.filter === "todo" ? "on" : ""}" data-f="todo">Not done (${n.todo})</button><button class="${ST.filter === "bad" ? "on" : ""}" data-f="bad">Failed (${n.bad})</button><button class="${ST.filter === "all" ? "on" : ""}" data-f="all">All (${n.all})</button></div>
+      ${multi ? `<label class="sub" style="display:inline-flex;gap:6px;align-items:center;min-height:44px"><input type="checkbox" id="allL" ${ST.allLoads ? "checked" : ""}> Show all loads</label>` : ""}</div>
+    <div class="list" style="margin-top:10px">${rooms.map(r => `<div class="room"><span>Room ${esc(r.room || "-")}</span></div>` + r.items.map(it => { const s = st(it); const pl = palletOf(it.id, S);
+      return `<button class="li" data-it="${esc(it.id)}"><span class="mark ${s.cls}">${s.mark}</span><span class="tag" style="min-width:52px">${esc(it.num)}</span><span class="t"><b>${esc(it.name)}</b><span>${it.kind === "part" ? "Part · " : ""}${pl ? esc(pl) + " · " : ""}${s.failed ? `Failed ${fmtT(s.s.last.t)} ${esc(s.s.last.by)} - "${esc(s.s.last.comment || "")}"` : s.done ? `${s.rechecked ? "Re-checked, passed" : "Passed"} ${fmtT(s.s.last.t)} ${esc(s.s.last.by)}` : ""}</span></span><span class="pill ${s.cls === "bad" ? "bad" : s.cls === "ok" ? (s.loaded ? "info" : "ok") : s.cls === "warn" ? "warn" : ""}">${esc(s.label)}</span></button>`; }).join("")).join("")
+      || `<div class="li mute" style="cursor:default">Nothing here.</div>`}</div>${bottomBack()}`;
+  $("pkQ").oninput = e => { ST.search = e.target.value; const pos = e.target.selectionStart; scrPick(app); const x = $("pkQ"); x.focus(); x.setSelectionRange(pos, pos); };
+  app.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { ST.filter = b.dataset.f; render(); });
+  if ($("allL")) $("allL").onchange = e => { ST.allLoads = e.target.checked; render(); };
+  app.querySelectorAll("[data-it]").forEach(b => b.onclick = () => { ST.queue = null; ST.runTotal = 0; const it = itemById(j, b.dataset.it); startForm(it, palletOf(it.id, S)); });
+  wireCommon(app);
+}
+
+/* 5. Hardware */
+function scrHw(app) {
+  const j = job(), d = draft();
+  if (!d.hw) d.hw = { load: ST.load, items: (j.hardware.length ? j.hardware : STD_HW).map(n => ({ name: n, val: "", photos: [], keyNo: "" })), special: { text: "", photos: [] }, loaded: null, loadedPhotos: [], extraPhotos: [], note: "" };
+  const H = d.hw, redraw = () => scrHw(app);
+  app.innerHTML = `<h1>Hardware check</h1><div class="sub">${j.hardware.length ? "From this job's " + esc(j.hwFrom || "Hardware Picture List") : "No Hardware Picture List for this job - standard 12 items"}</div>
+    <div class="card"><div class="hwgrid">${H.items.map((x, i) => `<div class="hwrow"><div><b>${esc(x.name)}</b>${x.custom ? ` <span class="pill">added</span>` : ""}</div>${seg("hw" + i, x.val, ["N/A", "Yes", "No"], { Yes: "yes", No: "no" })}
+      <div class="ex">${x.val === "Yes" ? `<label class="f" for="hq${i}" style="margin-top:0">Qty <span class="sub">(optional)</span></label><input type="text" inputmode="numeric" id="hq${i}" value="${esc(x.qty || "")}" placeholder="e.g. 48" style="max-width:120px;margin-bottom:6px">` : ""}${/key/i.test(x.name) ? `<label class="f" for="key${i}" style="margin-top:0">Extra key number</label><input type="text" id="key${i}" value="${esc(x.keyNo)}" placeholder="Key #" style="max-width:220px;margin-bottom:6px">` : ""}${x.val === "Yes" || x.photos.length ? photoBlock(x.photos, x.name + " photo") : ""}</div></div>`).join("")}
+      </div><button class="btn small" id="hwAdd" style="margin-top:10px">+ Add item</button></div>
+    <label class="f" for="spT">Special order part</label><input type="text" id="spT" value="${esc(H.special.text)}" placeholder="e.g. Hafele lift - 2 pcs">
+    <div style="margin-top:6px">${photoBlock(H.special.photos, "Special order photo")}</div>
+    <label class="f">Is the hardware loaded for delivery?</label>${seg("hwL", H.loaded === true ? "Yes" : H.loaded === false ? "No" : "", ["No", "Yes"])}
+    ${H.loaded ? `<label class="f">Loaded into vehicle</label>${photoBlock(H.loadedPhotos, "Truck photo")}` : ""}
+    <label class="f">Additional photos as needed</label>${photoBlock(H.extraPhotos, "Extra photo")}
+    <label class="f" for="hwN">Comment / note</label><textarea id="hwN">${esc(H.note)}</textarea>
+    <button class="btn primary big" id="done">Done</button>${bottomBack()}`;
+  H.items.forEach((x, i) => { const q = $("hq" + i); if (q) q.oninput = e => { x.qty = e.target.value.trim(); persist(); }; wireSeg(app, "hw" + i, v => { x.val = v; persist(); redraw(); }); const k = $("key" + i); if (k) k.oninput = e => { x.keyNo = e.target.value; persist(); }; });
+  wirePhotos(app, redraw);
+  $("spT").oninput = e => { H.special.text = e.target.value; persist(); };
+  wireSeg(app, "hwL", v => { H.loaded = v === "Yes"; persist(); redraw(); });
+  $("hwN").oninput = e => { H.note = e.target.value; persist(); };
+  $("hwAdd").onclick = () => sheet(`<h2 style="margin-top:0">Add a hardware item</h2><label class="f" for="haN">Item</label><input type="text" id="haN" placeholder="e.g. Keyboard tray"><div class="row" style="margin-top:14px"><button class="btn primary" id="haGo">Add</button><button class="btn" data-close>Cancel</button></div>`, sh => {
+    $("haGo").onclick = () => { const n = $("haN").value.trim(); if (!n) return; H.items.push({ name: n, val: "", photos: [], keyNo: "", custom: true }); persist(); sh.remove(); redraw(); }; });
+  $("done").onclick = () => { const left = H.items.filter(x => !x.val).length; if (left) return toast(`${plural(left, "item")} not answered - pick N/A, Yes or No.`); persist(); toast("Hardware saved."); go("job", true); };
+  wireCommon(app);
+}
+
+/* 6. Load the pallet onto the truck */
+function scrLoadPal(app) {
+  const j = job(), S = liveStatus(j), name = ST.pallet, P = S.pallets[name] || { keys: [] };
+  const dp = draftPallet(name, P.load || ST.load); dp._truck = dp._truck || [];
+  const rows = P.keys.map(k => { const s = S.items[k]; return { k, s, ok: !!(s && s.last && s.last.pass), loaded: !!(s && s.loaded) }; });
+  const can = rows.filter(r => r.ok && !r.loaded); const redraw = () => scrLoadPal(app);
+  app.innerHTML = `<h1>Load <span class="tag" style="font-size:20px">${esc(name)}</span> on the truck</h1><div class="sub">Only passed items are loaded.</div>
+    <div class="list" style="margin-top:10px">${rows.map(r => `<div class="li" style="cursor:default"><span class="mark ${r.ok ? "ok" : r.s ? "bad" : "warn"}">${r.ok ? "✔" : r.s ? "✕" : "○"}</span><span class="tag" style="min-width:52px">${esc(r.s ? r.s.num : r.k.split(":")[1].split("@")[0])}</span><span class="t"><b>${esc(r.s ? r.s.name : "")}</b><span>${r.loaded ? "already loaded" : r.ok ? "passed - will be loaded" : r.s ? `<span class="bad">failed - stays off the truck</span>` : `<span class="warn">not QC'd - stays off the truck</span>`}</span></span></div>`).join("")}</div>
+    <label class="f">Truck photo <span class="sub">(required)</span></label>${photoBlock(dp._truck, "Truck photo")}
+    <button class="btn primary big" id="markL" ${can.length ? "" : "disabled"}>Mark ${plural(can.length, "item")} loaded</button>
+    <div class="sub" style="margin-top:6px">When the office files this report, they're ticked Shipped${(j.loads || 1) > 1 ? ` (Load ${P.load})` : ""} in the Shipping Check List.</div>${bottomBack()}`;
+  wirePhotos(app, redraw);
+  $("markL").onclick = () => { if (!dp._truck.length) return toast("Take a truck photo first."); dp.loaded = true; dp.loadPhotos = dp._truck; delete dp._truck; dp.loadKeys = can.map(r => r.k); persist(); toast(`${plural(can.length, "item")} on ${name} marked loaded.`); go("pallet", true); };
+  wireCommon(app);
+}
+
+/* 7. Sign off & send */
+function scrSign(app) {
+  const j = job(), d = draft(), S0 = statusFrom(ST.reps[j.name] || []), S = liveStatus(j), multi = (j.loads || 1) > 1;
+  const loadsTouched = [...new Set(d.items.map(i => i.load || 1).concat(d.pallets.map(p => p.load || 1)).concat(d.hw ? [ST.load] : []))].sort();
+  const need = loadsTouched.filter(l => !S0.loadQ[l]);
+  d.loadQ = d.loadQ.filter(q => need.includes(q.load));
+  for (const l of need) if (!d.loadQ.find(q => q.load === l)) d.loadQ.push({ load: l, cleat: "", print: "", printPhoto: [] });
+  const fails = failedIn(d);
+  const usedP = d.pallets.filter(palUsed);
+  const noPhoto = usedP.filter(p => !p.photos.length && !(S0.pallets[p.pallet] && S0.pallets[p.pallet].photos));
+  const noLabel = usedP.filter(p => p.label == null && !(S0.pallets[p.pallet] && S0.pallets[p.pallet].label != null));
+  const notQc = [];
+  const truckP = usedP.filter(p => !(S0.pallets[p.pallet] && S0.pallets[p.pallet].loaded));
+  const noTruck = truckP.filter(p => !p.truck);
+  const redraw = () => scrSign(app);
+  const ph = d.items.reduce((a, i) => a + i.photos.length + (i.labelPhoto || []).length, 0) + d.pallets.reduce((a, p) => a + p.photos.length + (p.loadPhotos || []).length, 0) + (d.hw ? d.hw.items.reduce((a, x) => a + x.photos.length, 0) + d.hw.extraPhotos.length + d.hw.loadedPhotos.length + d.hw.special.photos.length : 0);
+  app.innerHTML = `<h1>Sign off &amp; send</h1><div class="cols side">
+    <div class="card aside"><b>${esc(j.name)}</b><div class="sub" style="margin-top:4px">${plural(usedP.length, "pallet")} · ${plural(d.items.filter(i => i.kind === "cab").length, "cabinet")} · ${plural(d.items.filter(i => i.kind === "part").length, "part")}${d.hw ? ` · hardware ${plural(d.hw.items.length, "item")}` : ""} · ${plural(ph, "photo")}</div>
+      ${fails.length ? `<div class="bad" style="margin-top:6px"><b>${fails.length} failed:</b> ${fails.map(f => esc(f.num + " " + (f.name || ""))).join(", ")} - Martin gets an email.</div>` : d.items.length ? `<div class="ok" style="margin-top:6px">Everything checked in this report passed.</div>` : ""}
+      ${d.pallets.filter(p => p.label).length ? `<div style="margin-top:6px">🏷 Pallet label for ${d.pallets.filter(p => p.label).map(p => esc(p.pallet)).join(", ")} - the office prints it.</div>` : ""}</div>
+    <div class="main">${noPhoto.length ? `<div class="banner bad">Pallet photo missing: ${noPhoto.map(p => `<button class="btn small" data-gp="${esc(p.pallet)}">${esc(p.pallet)}</button>`).join(" ")}</div>` : ""}
+    ${noLabel.length ? `<div class="banner warn">Pallet label not answered: ${noLabel.map(p => `<button class="btn small" data-gp="${esc(p.pallet)}">${esc(p.pallet)}</button>`).join(" ")}</div>` : ""}
+    ${truckP.map((p, i) => { const pass = (S.pallets[p.pallet] || { keys: [] }).keys.filter(k => S.items[k] && S.items[k].last && S.items[k].last.pass).length;
+      return `<div class="card"><b>🚚 ${esc(p.pallet)} on the truck</b> <span class="sub">${plural(pass, "passed item")}${pass < (S.pallets[p.pallet] || { keys: [] }).keys.length ? " · failed ones stay off" : ""}</span>
+      <label class="f">Photo of the pallet on the truck</label>${photoBlock(p.loadPhotos, "Truck photo")}
+      <div class="row" style="margin-top:8px">${seg("tr" + i, p.truck === "photo" ? "" : p.truck === "skip" ? "Skip photo" : p.truck === "later" ? "Not on the truck yet" : "", ["Skip photo", "Not on the truck yet"])}${p.truck === "photo" ? `<span class="pill ok">✔ Loaded with photo</span>` : ""}</div></div>`; }).join("")}
+    ${d.loadQ.map((q, i) => `<div class="card"><b>${multi ? `Load ${q.load} - ` : ""}asked once per load</b>
+      <label class="f">Hanging cleat / toe kick</label>${seg("cl" + i, q.cleat, ["N/A", "Yes", "No"], { Yes: "yes", No: "no" })}
+      <label class="f">Installation print</label>${seg("pr" + i, q.print, ["N/A", "Yes", "No"], { Yes: "yes", No: "no" })}
+      <label class="f">Photo of the install print in the box (optional)</label>${photoBlock(q.printPhoto, "Install print photo")}</div>`).join("")}
+    ${loadsTouched.filter(l => S0.loadQ[l]).map(l => `<div class="sub">${multi ? `Load ${l}: ` : ""}cleat / toe kick and install print already done by ${esc(S0.loadQ[l].by)} ${fmtT(S0.loadQ[l].t)}.</div>`).join("")}
+    <label class="f" style="display:flex;gap:10px;align-items:flex-start;color:var(--ink);font-weight:400;font-size:14px;margin-top:16px"><input type="checkbox" id="ack" ${d.ack ? "checked" : ""} style="width:24px;height:24px;flex:none"> I acknowledge that I have reviewed and inspected the product/work for quality assurance. All necessary checks have been completed, and any discrepancies have been addressed accordingly.</label>
+    <label class="f" for="by">Quality control done by - initials</label>
+    ${ST.recent.length ? `<div class="chips" style="margin-bottom:6px">${ST.recent.map(r => `<button class="chip" data-ini="${esc(r)}">${esc(r)}</button>`).join("")}</div>` : ""}
+    <input type="text" id="by" value="" maxlength="4" placeholder="e.g. TN" style="max-width:140px;text-transform:uppercase;font-family:var(--mono);font-size:18px">
+    <button class="btn primary big" id="send">Send</button>
+    <div class="sub" style="margin-top:6px">No Wi-Fi? It says "waiting to send" and sends by itself when Wi-Fi is back.</div></div></div>${bottomBack()}`;
+  app.querySelectorAll("[data-gp]").forEach(b => b.onclick = () => { ST.pallet = b.dataset.gp; go("pallet"); });
+  truckP.forEach((p, i) => wireSeg(app, "tr" + i, v => { p.truck = v === "Skip photo" ? "skip" : "later"; if (p.truck !== "photo") p.loadPhotos.length = 0; persist(); redraw(); }));
+  d.loadQ.forEach((q, i) => { wireSeg(app, "cl" + i, v => { q.cleat = v; persist(); redraw(); }); wireSeg(app, "pr" + i, v => { q.print = v; persist(); redraw(); }); });
+  wirePhotos(app, () => { for (const p of truckP) if (p.loadPhotos.length) p.truck = "photo"; else if (p.truck === "photo") p.truck = ""; persist(); redraw(); });
+  $("ack").onchange = e => { d.ack = e.target.checked; persist(); };
+  app.querySelectorAll("[data-ini]").forEach(b => b.onclick = () => { $("by").value = b.dataset.ini; app.querySelectorAll("[data-ini]").forEach(x => x.classList.toggle("on", x === b)); });
+  $("send").onclick = async () => {
+    const by = $("by").value.trim().toUpperCase();
+    if (noPhoto.length) return toast(`Take a pallet photo for ${noPhoto.map(p => p.pallet).join(", ")}.`);
+    if (noLabel.length) return toast(`Answer "Need a pallet label?" for ${noLabel.map(p => p.pallet).join(", ")}.`);
+    if (noTruck.length) return toast(`${noTruck.map(p => p.pallet).join(", ")}: take the truck photo, or tap Skip photo / Not on the truck yet.`, 4000);
+    for (const q of d.loadQ) if (!q.cleat || !q.print) return toast(`Answer hanging cleat / toe kick and installation print${multi ? " for Load " + q.load : ""}.`);
+    if (!d.ack) return toast("Tick the acknowledgement.");
+    if (!by) return toast("Type your initials.");
+    ST.recent = [by].concat(ST.recent.filter(x => x !== by)).slice(0, 6);
+    for (const p of truckP) if (p.truck === "photo" || p.truck === "skip") { p.loaded = true; p.loadKeys = (S.pallets[p.pallet] || { keys: [] }).keys.filter(k => S.items[k] && S.items[k].last && S.items[k].last.pass); }
+    const rep = Object.assign({}, d, { by, t: Date.now(), app: "PWC QC 0.3", pallets: d.pallets.filter(palUsed) });
+    ST.outbox.push(rep); delete ST.drafts[j.name]; persist();
+    ST.job = null; ST.screen = "jobs"; render();
+    await flushOutbox(true);
+  };
+  wireCommon(app);
+}
+
+/* ---------- APK: in-app update check (GitHub Releases of the app's repo) ---------- */
+async function checkAppUpdate() {
+  const B = window.PWC_QC_BUILD || {}; if (!B.repo || !navigator.onLine) return;
+  try { const r = await fetch(`https://api.github.com/repos/${B.repo}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } }); if (!r.ok) return; const rel = await r.json();
+    const v = String(rel.tag_name || "").replace(/^v/, ""), num = x => String(x).split(".").map(n => +n || 0), a = num(v), b = num(B.version || "0");
+    let newer = false; for (let i = 0; i < Math.max(a.length, b.length); i++) { if ((a[i] || 0) !== (b[i] || 0)) { newer = (a[i] || 0) > (b[i] || 0); break; } }
+    const apk = (rel.assets || []).find(x => /\.apk$/i.test(x.name)); if (!newer || !apk) return;
+    sheet(`<h2 style="margin-top:0">Update available</h2><p class="sub">PWC QC ${esc(v)} is ready (this tablet has ${esc(B.version)}). Reports waiting to send are kept.</p>
+      <ol class="sub" style="padding-left:18px"><li>Tap <b>Download update</b>.</li><li>Open the downloaded file and tap <b>Install</b> (allow "install unknown apps" the first time).</li></ol>
+      <div class="row"><button class="btn primary" id="upGo">Download update</button><button class="btn" data-close>Later</button></div>`, sh => {
+      $("upGo").onclick = async () => { const url = apk.browser_download_url; try { const L = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AppLauncher; if (L) await L.openUrl({ url }); else window.open(url, "_blank"); } catch (e) { window.open(url, "_blank"); } sh.remove(); }; });
+  } catch (e) {}
+}
+/* ---------- sending ---------- */
+let flushing = false;
+async function flushOutbox(fromSend) {
+  if (flushing || !ST.outbox.length) return; flushing = true; let sent = 0, err = "";
+  while (ST.outbox.length) { const r = ST.outbox[0]; try { await API.send(r); ST.outbox.shift(); r.sentOk = true; ST.sentLog.push({ id: r.id, job: r.job, by: r.by, t: r.t, sentT: Date.now() }); sent++; persist(); } catch (e) { err = e.message; break; } }
+  flushing = false;
+  if (sent) { await loadReportsAll(); toast(`✔ Sent ${plural(sent, "report")}.`); }
+  else if (fromSend && err) toast("No Wi-Fi - the report is waiting to send.", 3500);
+  render();
+}
+setInterval(() => { if (ST.outbox.length) flushOutbox(); }, 15000);
+window.addEventListener("online", () => flushOutbox());
+async function loadLists() { try { ST.jobs = (await API.jobs()).concat(ST.jobs.filter(j => j.other)); await loadReportsAll(); persist(); } catch (e) { if (e.server && /key/i.test(e.message)) { ST.key = ""; await Store.set("key", ""); ST.screen = "key"; } else toast("Couldn't get the job lists (no Wi-Fi?). Using the last lists on this tablet.", 4000); } }
+async function loadReportsAll() { for (const j of ST.jobs) { if (MODE !== "demo" && !j.hasList && !ST.drafts[j.name] && !(ST.reps[j.name] || []).length && j !== job()) continue; try { ST.reps[j.name] = await API.reports(j.name); } catch (e) {} } }
+
+/* ================= OFFICE (test) - what the PWC app on the office PC will do ================= */
+async function renderOffice(app) {
+  const s = await srv(); const reps = s.reports.slice().sort((a, b) => b.t - a.t);
+  const jobsW = [...new Set(s.reports.map(r => r.job))];
+  const oj = ST.officeJob && jobsW.includes(ST.officeJob) ? ST.officeJob : jobsW[0];
+  const labels = s.labels.filter(l => !l.printed);
+  app.innerHTML = `<div class="banner info"><span class="grow"><b>Office (test).</b> What the PWC app on the office PC will show. In the real app "File to A:" saves the PDF and photos into the job folder and ticks Shipped.</span></div>
+    <h1>📷 QC reports</h1><div class="sub">${reps.filter(r => !r.filed).length} new · the app checks every 30 minutes and files them by itself</div>
+    <div class="list" style="margin-top:10px">${reps.filter(r => !r.filed).map(r => { const f = failedIn(r); return `<div class="li" style="cursor:default"><span class="t"><b>${esc(r.job)}</b><span>${esc(r.by)} · ${fmtT(r.t)} · ${plural((r.pallets || []).length, "pallet")} · ${plural((r.items || []).length, "item")}${r.hw ? " + hardware" : ""}${f.length ? ` · <span class="bad">${f.length} failed</span>` : " · all passed"}</span></span>${r.filed ? `<span class="pill ok">Filed</span>` : `<button class="btn small primary" data-file="${esc(r.id)}">File to A:</button>`}</div>`; }).join("") || `<div class="li mute" style="cursor:default">No new reports.</div>`}</div>
+    <h2>📁 Filed QC reports <span class="sub">already saved to the A: drive</span></h2>
+    <div class="sub" style="margin-bottom:6px">Delete record removes the online copy and its photos from your Google Drive. The PDF and photos on A: stay, and the ✔ status on the tablets stays.</div>
+    <div class="list">${reps.filter(r => r.filed && !r.deleted).map(r => `<div class="li" style="cursor:default"><span class="t"><b>${esc(r.job)}</b><span>${esc(r.by)} · ${fmtT(r.t)} · ${plural((r.pallets || []).length, "pallet")} · filed to 08 Shop Documents\\QC Report</span></span><button class="btn small" data-delrec="${esc(r.id)}">Delete record</button></div>`).join("") || `<div class="li mute" style="cursor:default">No filed reports with an online copy.</div>`}</div>
+    ${reps.some(r => r.deleted) ? `<div class="sub" style="margin-top:4px">${plural(reps.filter(r => r.deleted).length, "record")} deleted.</div>` : ""}
+    ${s.filed.length ? `<div class="card"><b>Last filed</b><div class="mail">${esc(s.filed.slice(-1)[0])}</div></div>` : ""}
+    <h2>🏷 Pallet labels to print</h2>${labels.length ? `<div class="list">${labels.map((l, i) => `<div class="li" style="cursor:default"><span class="tag" style="min-width:52px">${esc(l.pallet)}</span><span class="t"><b>${esc(l.job)}</b><span>Load ${l.load} · asked by ${esc(l.by)} ${fmtT(l.t)}</span></span><button class="btn small primary" data-lbl="${s.labels.indexOf(l)}">Print label (test)</button></div>`).join("")}</div>` : `<div class="card mute">No labels waiting.</div>`}
+    <h2>📧 Emails sent to Martin (failed QC)</h2>${s.emails.length ? s.emails.slice().reverse().map(m => `<div class="card"><b>${esc(m.subject)}</b> <span class="sub">${fmtT(m.t)}</span><div class="mail">${esc(m.body)}</div></div>`).join("") : `<div class="card mute">None yet. Fail an item on the tablet and send.</div>`}
+    <h2>QC summary</h2>${jobsW.length ? `<div class="chips" style="margin-bottom:8px">${jobsW.map(n => `<button class="chip ${n === oj ? "on" : ""}" data-oj="${esc(n)}" style="font-family:var(--sans)">${esc(n)}</button>`).join("")}</div>${summaryHtml(oj, s)}` : `<div class="card mute">No reports yet.</div>`}`;
+  app.querySelectorAll("[data-oj]").forEach(b => b.onclick = () => { ST.officeJob = b.dataset.oj; render(); });
+  app.querySelectorAll("[data-delrec]").forEach(b => b.onclick = () => { const r = s.reports.find(x => x.id === b.dataset.delrec);
+    sheet(`<h2 style="margin-top:0">Delete the online record?</h2><p class="sub">${esc(r.job)} · ${esc(r.by)} ${fmtT(r.t)}<br>Removes the report and its photos from your Google Drive. The files on A: are not touched.</p><div class="row"><button class="btn primary" id="drGo">Delete record</button><button class="btn" data-close>Cancel</button></div>`, sh => {
+      $("drGo").onclick = async () => { const strip = o => { if (Array.isArray(o)) o.forEach(strip); else if (o && typeof o === "object") for (const k in o) { if (/^(photos|labelPhoto|loadPhotos|printPhoto|extraPhotos|loadedPhotos)$/.test(k) && Array.isArray(o[k])) o[k] = o[k].map(() => ({ id: "x", data: "" })); else strip(o[k]); } };
+        strip(r); r.deleted = true; await Store.set("demoServer", s); sh.remove(); toast("Online record deleted."); render(); }; }); });
+  app.querySelectorAll("[data-lbl]").forEach(b => b.onclick = async () => { const l = s.labels[+b.dataset.lbl]; l.printed = true; await Store.set("demoServer", s); const S = statusFrom(s.reports.filter(r => r.job === l.job)); const keys = (S.pallets[l.pallet] || { keys: [] }).keys; const nums = keys.map(k => S.items[k] ? S.items[k].num : k.split(":")[1].split("@")[0]);
+    sheet(`<h2 style="margin-top:0">Pallet label (DYMO)</h2><div class="card" style="font-family:var(--mono)"><div style="font-size:13px">${esc(l.job)}</div><div style="font-size:30px;font-weight:600">${esc(l.pallet)}</div><div>Load ${l.load}</div><div style="font-size:12px;margin-top:4px">${esc(nums.join(", "))}</div></div><p class="sub">In the real app this prints on the DYMO with the label app.</p><div class="row"><button class="btn" data-close>Close</button></div>`); render(); });
+  app.querySelectorAll("[data-file]").forEach(b => b.onclick = async () => {
+    const r = s.reports.find(x => x.id === b.dataset.file); r.filed = true;
+    const d = new Date(r.t), stamp = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + "_" + String(d.getHours()).padStart(2, "0") + String(d.getMinutes()).padStart(2, "0") + "_" + r.by;
+    const names = []; for (const p of r.pallets || []) { p.photos.forEach((_, i) => names.push(`${p.pallet}_pallet_${i + 1}.jpg`)); (p.loadPhotos || []).forEach((_, i) => names.push(`${p.pallet}_truck_${i + 1}.jpg`)); }
+    for (const it of r.items || []) it.photos.forEach((_, i) => names.push(`${it.pallet ? it.pallet + "_" : ""}${it.num}_${i + 1}.jpg`));
+    const S = statusFrom(s.reports.filter(x => x.job === r.job));
+    const shipped = (r.pallets || []).filter(p => p.loaded).flatMap(p => p.loadKeys.map(k => S.items[k] ? S.items[k].num : k));
+    s.filed.push(`A:\\Jobs\\${r.job}\\08 Shop Documents\\QC Report\\QC_${stamp}.pdf\nA:\\Jobs\\${r.job}\\08 Shop Documents\\QC Report\\Photos\\${stamp}\\  ${names.slice(0, 6).join("  ")}${names.length > 6 ? "  …" : ""}\nShipping Check List: Shipped ticked for ${shipped.length ? shipped.join(", ") : "nothing (no pallet loaded in this report)"}`);
+    await Store.set("demoServer", s); toast("Filed (test)."); render(); });
+}
+function summaryHtml(name, s) {
+  const j = ST.jobs.find(x => x.name === name) || { name, cabinets: [], parts: [], hardware: [], loads: 1 };
+  const S = statusFrom(s.reports.filter(r => r.job === name)); const all = itemsOf(j);
+  const st = it => itemState(it, S);
+  const cDone = all.filter(i => i.kind === "cab" && st(i).done).length, cTot = all.filter(i => i.kind === "cab").length, pDone = all.filter(i => i.kind === "part" && st(i).done).length, pTot = all.filter(i => i.kind === "part").length, loaded = all.filter(i => S.items[i.id] && S.items[i.id].loaded).length;
+  const bad = Object.values(S.items).filter(x => x.last && x.last.pass === false), rech = Object.values(S.items).filter(x => x.failedOnce && x.last && x.last.pass), hand = Object.values(S.items).filter(x => x.manual), notDone = all.filter(i => !S.items[i.id]);
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const pals = sortP(Object.keys(S.pallets));
+  return `<div class="sumgrid"><div class="stat">Cabinets<b>${cDone} of ${cTot}</b><div class="bar"><i style="width:${pct(cDone, cTot)}%"></i></div></div>
+    <div class="stat">Loose parts<b>${pDone} of ${pTot}</b><div class="bar"><i style="width:${pct(pDone, pTot)}%"></i></div></div>
+    <div class="stat">Loaded<b>${loaded} of ${all.length}</b><div class="bar"><i style="width:${pct(loaded, all.length)}%;background:var(--info)"></i></div></div>
+    <div class="stat">Failed open<b class="${bad.length ? "bad" : ""}">${bad.length}</b></div></div>
+    <div class="card scroll"><table class="t"><tr><th>Pallet</th><th>Load</th><th>Items</th><th>Photos</th><th>Label</th><th>Loaded</th></tr>${pals.map(p => { const P = S.pallets[p]; return `<tr><td class="tag">${esc(p)}</td><td>${P.load}</td><td>${P.keys.map(k => S.items[k] ? esc(S.items[k].num) + (S.items[k].last.pass ? "" : " ✕") : esc(k.split(":")[1].split("@")[0]) + " ○").join(", ")}</td><td>${P.photos || `<span class="bad">0</span>`}</td><td>${P.label ? "🏷 yes" : P.label === false ? "no" : "-"}</td><td>${P.loaded ? "🚚 yes" : "-"}</td></tr>`; }).join("") || `<tr><td colspan="6" class="mute">No pallets.</td></tr>`}</table></div>
+    <div class="card scroll"><table class="t"><tr><th>Load</th><th>Hanging cleat / toe kick</th><th>Installation print</th></tr>${Array.from({ length: j.loads || 1 }, (_, k) => { const q = S.loadQ[k + 1]; return `<tr><td>Load ${k + 1}</td><td>${q ? esc(q.cleat) + " · " + esc(q.by) : `<span class="mute">not asked yet</span>`}</td><td>${q ? esc(q.print) + (q.hasPhoto ? " 📷" : "") : `<span class="mute">not asked yet</span>`}</td></tr>`; }).join("")}</table></div>
+    <div class="card scroll"><b>Needs attention</b><table class="t" style="margin-top:6px">
+      ${bad.map(x => `<tr><td class="bad">✕ <span class="tag">${esc(x.num)}</span> ${esc(x.name || "")}</td><td>failed ${fmtT(x.last.t)} ${esc(x.last.by)} "${esc(x.last.comment || "")}"</td></tr>`).join("")}
+      ${rech.map(x => `<tr><td class="ok">✔ <span class="tag">${esc(x.num)}</span> ${esc(x.name || "")}</td><td>failed ${fmtT(x.failedOnce.t)} → re-checked, passed ${esc(x.last.by)} ${fmtT(x.last.t)}</td></tr>`).join("")}
+      ${notDone.length ? `<tr><td class="warn">○ ${notDone.map(i => esc(i.num)).join(", ")}</td><td>no QC yet</td></tr>` : ""}
+      ${hand.map(x => `<tr><td class="warn">+ <span class="tag">${esc(x.num)}</span> ${esc(x.name || "")}</td><td>added by hand - not on the packing list</td></tr>`).join("")}
+      ${!bad.length && !rech.length && !notDone.length && !hand.length ? `<tr><td class="ok">All done.</td><td></td></tr>` : ""}</table></div>
+    <div class="sub">Reports: ${S.reports} · last ${S.lastT ? fmtT(S.lastT) + " " + esc(S.lastBy) : "-"}. The office app can print this summary into the QC Report folder.</div>`;
+}
+
+/* ---------- start ---------- */
+$("tabTablet").onclick = () => { ST.view = "tablet"; render(); };
+$("tabOffice").onclick = () => { ST.view = "office"; render(); };
+$("hdrBack").onclick = back;
+(async () => {
+  await Store.open();
+  try { const t = await Store.get("tablet"); if (t) Object.assign(ST, { drafts: t.drafts || {}, outbox: t.outbox || [], sentLog: t.sentLog || [], jobs: t.jobs || [], manual: t.manual || {}, recent: t.recent || [], listsT: t.listsT || 0 }); } catch (e) {}
+  $("modeTag").textContent = MODE === "demo" ? "test mode" : "";
+  if (MODE !== "demo") { $("viewTabs").hidden = true; ST.key = (await Store.get("key")) || ""; ST.url = (await Store.get("url")) || ""; if (!ST.key || (MODE === "app" && !ST.url)) { ST.screen = "key"; render(); return; } }
+  if (MODE === "app") setTimeout(checkAppUpdate, 4000);
+  try { history.replaceState({ qc: 0 }, ""); } catch (e) {}
+  await loadLists(); render(); if (ST.outbox.length) flushOutbox();
+})();
+
+</script>
+
+</body></html>
